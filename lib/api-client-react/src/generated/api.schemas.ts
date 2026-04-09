@@ -44,6 +44,14 @@ export interface UpdateProfileBody {
   language?: string;
 }
 
+export type ProductUnit = (typeof ProductUnit)[keyof typeof ProductUnit];
+
+export const ProductUnit = {
+  dona: "dona",
+  kg: "kg",
+  pachka: "pachka",
+} as const;
+
 export interface Product {
   id: number;
   name: string;
@@ -54,6 +62,7 @@ export interface Product {
   categoryId?: number | null;
   categoryName?: string | null;
   inStock: boolean;
+  unit: ProductUnit;
   isLiked: boolean;
   createdAt: string;
 }
@@ -65,6 +74,15 @@ export interface ProductsListResponse {
   limit: number;
 }
 
+export type CreateProductBodyUnit =
+  (typeof CreateProductBodyUnit)[keyof typeof CreateProductBodyUnit];
+
+export const CreateProductBodyUnit = {
+  dona: "dona",
+  kg: "kg",
+  pachka: "pachka",
+} as const;
+
 export interface CreateProductBody {
   name: string;
   description?: string;
@@ -73,7 +91,17 @@ export interface CreateProductBody {
   images: string[];
   categoryId?: number;
   inStock?: boolean;
+  unit?: CreateProductBodyUnit;
 }
+
+export type UpdateProductBodyUnit =
+  (typeof UpdateProductBodyUnit)[keyof typeof UpdateProductBodyUnit];
+
+export const UpdateProductBodyUnit = {
+  dona: "dona",
+  kg: "kg",
+  pachka: "pachka",
+} as const;
 
 export interface UpdateProductBody {
   name?: string;
@@ -83,6 +111,7 @@ export interface UpdateProductBody {
   images?: string[];
   categoryId?: number;
   inStock?: boolean;
+  unit?: UpdateProductBodyUnit;
 }
 
 export interface Category {
@@ -316,6 +345,11 @@ export interface DashboardStats {
 export interface OrderStatusCount {
   status: string;
   count: number;
+}
+
+export interface SiteSettings {
+  siteName?: string | null;
+  logoUrl?: string | null;
 }
 
 export type ListProductsParams = {

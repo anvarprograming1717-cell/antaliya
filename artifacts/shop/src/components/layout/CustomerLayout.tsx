@@ -2,13 +2,16 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, ShoppingCart, Heart, User, Clock, ShoppingBag } from "lucide-react";
-import { useGetCart, getGetCartQueryKey } from "@workspace/api-client-react";
+import { useGetCart, getGetCartQueryKey, useGetSiteSettings, getGetSiteSettingsQueryKey } from "@workspace/api-client-react";
 
 export function CustomerLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { data: cartItems } = useGetCart({ query: { queryKey: getGetCartQueryKey() } });
+  const { data: siteSettings } = useGetSiteSettings({ query: { queryKey: getGetSiteSettingsQueryKey() } });
 
   const cartCount = cartItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+  const siteName = siteSettings?.siteName || "ShopUz";
+  const logoUrl = siteSettings?.logoUrl || null;
 
   const navItems = [
     { href: "/", icon: Home, label: "Katalog" },
@@ -38,13 +41,19 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
         <div className="absolute bottom-0 left-0 right-0 glass-panel border-t border-white/20 dark:border-white/10 pb-safe z-50">
           {/* Logo strip */}
           <div className="flex items-center justify-center gap-1.5 pt-2 pb-1">
-            <div className="w-5 h-5 rounded-lg bg-primary flex items-center justify-center">
-              <ShoppingBag className="w-3 h-3 text-white" strokeWidth={2.5} />
-            </div>
-            <span className="text-sm font-extrabold tracking-tight">
-              <span className="text-primary">Shop</span>
-              <span className="text-foreground">Uz</span>
-            </span>
+            {logoUrl ? (
+              <img src={logoUrl} alt={siteName} className="h-5 w-auto max-w-[100px] object-contain" />
+            ) : (
+              <>
+                <div className="w-5 h-5 rounded-lg bg-primary flex items-center justify-center">
+                  <ShoppingBag className="w-3 h-3 text-white" strokeWidth={2.5} />
+                </div>
+                <span className="text-sm font-extrabold tracking-tight">
+                  <span className="text-primary">{siteName.slice(0, Math.ceil(siteName.length / 2))}</span>
+                  <span className="text-foreground">{siteName.slice(Math.ceil(siteName.length / 2))}</span>
+                </span>
+              </>
+            )}
           </div>
 
           {/* Nav Icons */}

@@ -130,6 +130,7 @@ export const ListProductsResponse = zod.object({
       categoryId: zod.number().nullish(),
       categoryName: zod.string().nullish(),
       inStock: zod.boolean(),
+      unit: zod.enum(["dona", "kg", "pachka"]),
       isLiked: zod.boolean(),
       createdAt: zod.string(),
     }),
@@ -150,6 +151,7 @@ export const CreateProductBody = zod.object({
   images: zod.array(zod.string()),
   categoryId: zod.number().optional(),
   inStock: zod.boolean().optional(),
+  unit: zod.enum(["dona", "kg", "pachka"]).optional(),
 });
 
 /**
@@ -169,6 +171,7 @@ export const GetProductResponse = zod.object({
   categoryId: zod.number().nullish(),
   categoryName: zod.string().nullish(),
   inStock: zod.boolean(),
+  unit: zod.enum(["dona", "kg", "pachka"]),
   isLiked: zod.boolean(),
   createdAt: zod.string(),
 });
@@ -188,6 +191,7 @@ export const UpdateProductBody = zod.object({
   images: zod.array(zod.string()).optional(),
   categoryId: zod.number().optional(),
   inStock: zod.boolean().optional(),
+  unit: zod.enum(["dona", "kg", "pachka"]).optional(),
 });
 
 export const UpdateProductResponse = zod.object({
@@ -200,6 +204,7 @@ export const UpdateProductResponse = zod.object({
   categoryId: zod.number().nullish(),
   categoryName: zod.string().nullish(),
   inStock: zod.boolean(),
+  unit: zod.enum(["dona", "kg", "pachka"]),
   isLiked: zod.boolean(),
   createdAt: zod.string(),
 });
@@ -283,6 +288,7 @@ export const GetCartResponseItem = zod.object({
     categoryId: zod.number().nullish(),
     categoryName: zod.string().nullish(),
     inStock: zod.boolean(),
+    unit: zod.enum(["dona", "kg", "pachka"]),
     isLiked: zod.boolean(),
     createdAt: zod.string(),
   }),
@@ -311,6 +317,7 @@ export const AddToCartResponse = zod.object({
     categoryId: zod.number().nullish(),
     categoryName: zod.string().nullish(),
     inStock: zod.boolean(),
+    unit: zod.enum(["dona", "kg", "pachka"]),
     isLiked: zod.boolean(),
     createdAt: zod.string(),
   }),
@@ -341,6 +348,7 @@ export const UpdateCartItemResponse = zod.object({
     categoryId: zod.number().nullish(),
     categoryName: zod.string().nullish(),
     inStock: zod.boolean(),
+    unit: zod.enum(["dona", "kg", "pachka"]),
     isLiked: zod.boolean(),
     createdAt: zod.string(),
   }),
@@ -483,6 +491,7 @@ export const GetLikedResponseItem = zod.object({
   categoryId: zod.number().nullish(),
   categoryName: zod.string().nullish(),
   inStock: zod.boolean(),
+  unit: zod.enum(["dona", "kg", "pachka"]),
   isLiked: zod.boolean(),
   createdAt: zod.string(),
 });
@@ -651,6 +660,27 @@ export const AdminLoginResponse = zod.object({
 export const AdminLogoutResponse = zod.object({
   success: zod.boolean(),
   message: zod.string().optional(),
+});
+
+/**
+ * @summary Get site settings (logo, name)
+ */
+export const GetSiteSettingsResponse = zod.object({
+  siteName: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Update site settings (admin)
+ */
+export const UpdateSiteSettingsBody = zod.object({
+  siteName: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+});
+
+export const UpdateSiteSettingsResponse = zod.object({
+  siteName: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
 });
 
 /**

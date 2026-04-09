@@ -5,6 +5,7 @@
  * E-commerce shop API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateProductBodyUnit } from "./createProductBodyUnit";
 
 export interface CreateProductBody {
   name: string;
@@ -14,4 +15,5 @@ export interface CreateProductBody {
   images: string[];
   categoryId?: number;
   inStock?: boolean;
+  unit?: CreateProductBodyUnit;
 }

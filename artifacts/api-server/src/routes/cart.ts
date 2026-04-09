@@ -23,6 +23,7 @@ async function getProductForCart(productId: number, customerId: number | null) {
     categoryId: productsTable.categoryId,
     categoryName: categoriesTable.name,
     inStock: productsTable.inStock,
+    unit: productsTable.unit,
     createdAt: productsTable.createdAt,
   })
     .from(productsTable)

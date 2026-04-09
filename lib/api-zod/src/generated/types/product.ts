@@ -5,6 +5,7 @@
  * E-commerce shop API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductUnit } from "./productUnit";
 
 export interface Product {
   id: number;
@@ -16,6 +17,7 @@ export interface Product {
   categoryId?: number | null;
   categoryName?: string | null;
   inStock: boolean;
+  unit: ProductUnit;
   isLiked: boolean;
   createdAt: string;
 }

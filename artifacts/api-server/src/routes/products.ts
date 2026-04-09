@@ -42,6 +42,7 @@ router.get("/products", async (req, res): Promise<void> => {
       categoryId: productsTable.categoryId,
       categoryName: categoriesTable.name,
       inStock: productsTable.inStock,
+      unit: productsTable.unit,
       createdAt: productsTable.createdAt,
     })
       .from(productsTable)
@@ -116,6 +117,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     categoryId: productsTable.categoryId,
     categoryName: categoriesTable.name,
     inStock: productsTable.inStock,
+    unit: productsTable.unit,
     createdAt: productsTable.createdAt,
   })
     .from(productsTable)

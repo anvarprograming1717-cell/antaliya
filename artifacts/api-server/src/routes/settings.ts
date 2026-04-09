@@ -70,4 +70,21 @@ router.post("/admin/logout", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
 
+router.get("/site-settings", async (req, res): Promise<void> => {
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  res.json({ siteName: map.siteName ?? null, logoUrl: map.logoUrl ?? null });
+});
+
+router.patch("/admin/site-settings", async (req, res): Promise<void> => {
+  const { siteName, logoUrl } = req.body;
+  if (siteName !== undefined) await upsertSetting("siteName", siteName ?? "");
+  if (logoUrl !== undefined) await upsertSetting("logoUrl", logoUrl ?? "");
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  res.json({ siteName: map.siteName ?? null, logoUrl: map.logoUrl ?? null });
+});
+
 export default router;

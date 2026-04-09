@@ -736,6 +736,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
 
+  /site-settings:
+    get:
+      operationId: getSiteSettings
+      tags: [settings]
+      summary: Get site settings (logo, name)
+      responses:
+        "200":
+          description: Site settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+
+  /admin/site-settings:
+    patch:
+      operationId: updateSiteSettings
+      tags: [settings]
+      summary: Update site settings (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteSettings"
+      responses:
+        "200":
+          description: Updated site settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+
   /notifications/send:
     post:
       operationId: sendNotification
@@ -929,6 +961,9 @@ components:
           nullable: true
         inStock:
           type: boolean
+        unit:
+          type: string
+          enum: [dona, kg, pachka]
         isLiked:
           type: boolean
         createdAt:
@@ -939,6 +974,7 @@ components:
         - price
         - images
         - inStock
+        - unit
         - isLiked
         - createdAt
 
@@ -980,6 +1016,9 @@ components:
           type: integer
         inStock:
           type: boolean
+        unit:
+          type: string
+          enum: [dona, kg, pachka]
       required:
         - name
         - price
@@ -1004,6 +1043,9 @@ components:
           type: integer
         inStock:
           type: boolean
+        unit:
+          type: string
+          enum: [dona, kg, pachka]
 
     Category:
       type: object
@@ -1374,3 +1416,13 @@ components:
       required:
         - status
         - count
+
+    SiteSettings:
+      type: object
+      properties:
+        siteName:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true

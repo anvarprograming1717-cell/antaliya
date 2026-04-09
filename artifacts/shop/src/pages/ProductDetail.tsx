@@ -132,8 +132,11 @@ export default function ProductDetail() {
         <h1 className="text-2xl font-bold" data-testid="text-product-name">{product.name}</h1>
 
         {/* Price */}
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-black text-primary">{(product.price as number).toLocaleString()} so'm</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-2xl font-black text-primary">
+            {(product.price as number).toLocaleString()} so'm
+            <span className="text-base font-semibold text-primary/70 ml-1">/{product.unit ?? "dona"}</span>
+          </span>
           {product.oldPrice && (
             <span className="text-base text-muted-foreground line-through">{(product.oldPrice as number).toLocaleString()} so'm</span>
           )}

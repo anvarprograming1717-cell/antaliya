@@ -5,6 +5,7 @@
  * E-commerce shop API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateProductBodyUnit } from "./updateProductBodyUnit";
 
 export interface UpdateProductBody {
   name?: string;
@@ -14,4 +15,5 @@ export interface UpdateProductBody {
   images?: string[];
   categoryId?: number;
   inStock?: boolean;
+  unit?: UpdateProductBodyUnit;
 }

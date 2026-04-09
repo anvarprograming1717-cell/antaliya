@@ -12,6 +12,7 @@ export const productsTable = pgTable("products", {
   images: text("images").array().notNull().default([]),
   categoryId: integer("category_id").references(() => categoriesTable.id, { onDelete: "set null" }),
   inStock: boolean("in_stock").notNull().default(true),
+  unit: text("unit").notNull().default("dona"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

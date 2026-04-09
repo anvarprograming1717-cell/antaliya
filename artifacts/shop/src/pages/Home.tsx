@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Heart, Search, MessageCircle } from "lucide-react";
+import { Heart, Search, MessageCircle, ShoppingBag } from "lucide-react";
 import { 
   useListProducts, 
   getListProductsQueryKey,
@@ -9,7 +9,9 @@ import {
   getListCategoriesQueryKey,
   useListBanners,
   getListBannersQueryKey,
-  useToggleLike
+  useToggleLike,
+  useGetSiteSettings,
+  getGetSiteSettingsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,9 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
+  const { data: siteSettings } = useGetSiteSettings({ query: { queryKey: getGetSiteSettingsQueryKey() } });
+  const siteName = siteSettings?.siteName || "ShopUz";
+  const logoUrl = siteSettings?.logoUrl || null;
 
   const { data: banners, isLoading: loadingBanners } = useListBanners({ query: { queryKey: getListBannersQueryKey() } });
   const { data: categories, isLoading: loadingCategories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
@@ -47,7 +52,19 @@ export default function Home() {
     <div className="min-h-screen pb-6">
       {/* Header */}
       <div className="sticky top-0 z-40 glass-panel border-b border-white/20 dark:border-white/10 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-primary tracking-tight">ShopUz</h1>
+        {logoUrl ? (
+          <img src={logoUrl} alt={siteName} className="h-8 w-auto max-w-[120px] object-contain" />
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <div className="w-7 h-7 rounded-xl bg-primary flex items-center justify-center">
+              <ShoppingBag className="w-4 h-4 text-white" strokeWidth={2.5} />
+            </div>
+            <h1 className="text-xl font-extrabold tracking-tight">
+              <span className="text-primary">{siteName.slice(0, Math.ceil(siteName.length / 2))}</span>
+              <span className="text-foreground">{siteName.slice(Math.ceil(siteName.length / 2))}</span>
+            </h1>
+          </div>
+        )}
         <Link href="/chat">
           <Button variant="ghost" size="icon" className="rounded-full bg-muted/50 w-10 h-10">
             <MessageCircle className="w-5 h-5 text-foreground" />
@@ -147,8 +164,11 @@ export default function Home() {
                   <img src={product.images[0] || "https://placehold.co/400"} alt={product.name} className="w-full h-full object-cover" />
                 </div>
                 <h3 className="font-semibold text-sm line-clamp-2 leading-tight mb-1">{product.name}</h3>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-primary">{product.price.toLocaleString()} so'm</span>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="font-bold text-primary text-sm">
+                    {product.price.toLocaleString()} so'm
+                    <span className="text-xs font-medium opacity-70">/{product.unit ?? "dona"}</span>
+                  </span>
                   {product.oldPrice && (
                     <span className="text-xs text-muted-foreground line-through">{product.oldPrice.toLocaleString()}</span>
                   )}

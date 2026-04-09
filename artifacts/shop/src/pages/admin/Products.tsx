@@ -16,9 +16,10 @@ type ProductForm = {
   images: string;
   categoryId: string;
   inStock: boolean;
+  unit: "dona" | "kg" | "pachka";
 };
 
-const emptyForm: ProductForm = { name: "", description: "", price: "", oldPrice: "", images: "", categoryId: "", inStock: true };
+const emptyForm: ProductForm = { name: "", description: "", price: "", oldPrice: "", images: "", categoryId: "", inStock: true, unit: "dona" };
 
 export default function Products() {
   const queryClient = useQueryClient();
@@ -46,6 +47,7 @@ export default function Products() {
       images: (p.images || []).join("\n"),
       categoryId: p.categoryId ? String(p.categoryId) : "",
       inStock: p.inStock,
+      unit: (p.unit as any) || "dona",
     });
     setShowModal(true);
   };
@@ -59,6 +61,7 @@ export default function Products() {
       images: form.images.split("\n").map(s => s.trim()).filter(Boolean),
       categoryId: form.categoryId ? parseInt(form.categoryId) : undefined,
       inStock: form.inStock,
+      unit: form.unit,
     };
 
     if (editId) {
@@ -184,17 +187,35 @@ export default function Products() {
                 <label className="text-sm font-medium block mb-1">Rasm URL-lari (har biri yangi qatorda)</label>
                 <Textarea value={form.images} onChange={e => setForm(f => ({ ...f, images: e.target.value }))} className="rounded-xl resize-none" rows={3} placeholder="https://..." data-testid="input-product-images" />
               </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Kategoriya</label>
-                <select
-                  value={form.categoryId}
-                  onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
-                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
-                  data-testid="select-category"
-                >
-                  <option value="">Kategoriyasiz</option>
-                  {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium block mb-1">Kategoriya</label>
+                  <select
+                    value={form.categoryId}
+                    onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                    className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
+                    data-testid="select-category"
+                  >
+                    <option value="">Kategoriyasiz</option>
+                    {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">O'lchov birligi</label>
+                  <div className="flex gap-1.5">
+                    {(["dona", "kg", "pachka"] as const).map(u => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, unit: u }))}
+                        className={`flex-1 h-10 rounded-xl text-xs font-semibold border-2 transition-all ${form.unit === u ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                        data-testid={`button-unit-${u}`}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
                 <div
