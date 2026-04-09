@@ -1,6 +1,6 @@
-import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { Clock, ChevronRight, Package } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Clock, Package, MapPin, Navigation2, User, Phone, X } from "lucide-react";
 import { useListOrders, getListOrdersQueryKey } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCustomerSession } from "@/lib/auth";
@@ -19,11 +19,68 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-100 text-red-700",
 };
 
+function CourierMapModal({ order, onClose }: { order: any; onClose: () => void }) {
+  const lat = order.courierLat;
+  const lng = order.courierLng;
+  const hasLoc = lat && lng;
+  const mapUrl = hasLoc
+    ? `https://yandex.uz/map-widget/v1/?ll=${lng},${lat}&pt=${lng},${lat},pm2rdl&z=16&l=map`
+    : order.address
+    ? `https://yandex.uz/map-widget/v1/?text=${encodeURIComponent(order.address)}&lang=uz_UZ&z=15&l=map`
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-card rounded-3xl p-5 w-full max-w-sm shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-lg">
+            {hasLoc ? "Kuryer joylashuvi" : "Yetkazib berish manzili"}
+          </h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {order.courierName && (
+          <div className="flex items-center gap-3 mb-4 bg-muted/50 rounded-xl p-3">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+              <Navigation2 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold">{order.courierName}</p>
+              <a href={`tel:${order.courierPhone}`} className="text-sm text-primary font-medium">{order.courierPhone}</a>
+            </div>
+          </div>
+        )}
+        {mapUrl ? (
+          <iframe
+            src={mapUrl}
+            width="100%"
+            height="280"
+            className="rounded-2xl border border-border"
+            allowFullScreen
+            title="Xarita"
+          />
+        ) : (
+          <div className="text-center py-8 text-muted-foreground text-sm">Xarita ma'lumoti mavjud emas</div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Orders() {
   const session = getCustomerSession();
+  const [mapOrder, setMapOrder] = useState<any | null>(null);
+
   const { data: orders, isLoading } = useListOrders(
     { customerId: session?.id },
-    { query: { queryKey: getListOrdersQueryKey({ customerId: session?.id }) } }
+    { query: { queryKey: getListOrdersQueryKey({ customerId: session?.id }), refetchInterval: 30000 } }
   );
 
   if (isLoading) {
@@ -86,6 +143,33 @@ export default function Orders() {
                   )}
                 </div>
 
+                {/* Courier Info (shown when preparing) */}
+                {order.courierId && order.status === "preparing" && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Navigation2 className="w-4 h-4 text-primary flex-none" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Kuryer</p>
+                        <p className="font-semibold text-sm">{order.courierName}</p>
+                        {order.courierPhone && (
+                          <a href={`tel:${order.courierPhone}`} className="text-xs text-primary flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {order.courierPhone}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setMapOrder(order)}
+                      className="px-3 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold flex items-center gap-1.5"
+                      data-testid={`button-track-${order.id}`}
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      Ko'rish
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
@@ -98,6 +182,10 @@ export default function Orders() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {mapOrder && <CourierMapModal order={mapOrder} onClose={() => setMapOrder(null)} />}
+      </AnimatePresence>
     </div>
   );
 }

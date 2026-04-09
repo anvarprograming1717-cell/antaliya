@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { getCustomerSession, getAdminSession } from "@/lib/auth";
 import { useEffect } from "react";
+import { LanguageProvider } from "@/lib/i18n";
 
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -18,6 +19,7 @@ import Orders from "@/pages/Orders";
 import Liked from "@/pages/Liked";
 import Chat from "@/pages/Chat";
 import Profile from "@/pages/Profile";
+import CourierApp from "@/pages/CourierApp";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
 import Dashboard from "@/pages/admin/Dashboard";
@@ -30,17 +32,19 @@ import Customers from "@/pages/admin/Customers";
 import AdminChat from "@/pages/admin/AdminChat";
 import Notifications from "@/pages/admin/Notifications";
 import Settings from "@/pages/admin/Settings";
-// Patch globalThis.fetch to inject x-customer-id on every /api request
+import AdminCouriers from "@/pages/admin/AdminCouriers";
+
+// Patch globalThis.fetch to inject auth headers on every /api request
 const _originalFetch = globalThis.fetch.bind(globalThis);
 globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === "string" ? input : (input instanceof Request ? input.url : input.toString());
   if (url.startsWith("/api") || url.includes("/api/")) {
+    const headers = new Headers((init?.headers as HeadersInit) || (input instanceof Request ? input.headers : {}));
     const customerId = localStorage.getItem("customerId");
-    if (customerId) {
-      const headers = new Headers((init?.headers as HeadersInit) || (input instanceof Request ? input.headers : {}));
-      headers.set("x-customer-id", customerId);
-      init = { ...init, headers };
-    }
+    if (customerId) headers.set("x-customer-id", customerId);
+    const courierId = localStorage.getItem("courierId");
+    if (courierId) headers.set("x-courier-id", courierId);
+    init = { ...init, headers };
   }
   return _originalFetch(input, init);
 };
@@ -99,6 +103,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/courier" component={CourierApp} />
 
       <Route path="/" component={() => <CustomerRoute component={Home} />} />
       <Route path="/product/:id" component={() => <CustomerRoute component={ProductDetail} />} />
@@ -120,6 +125,7 @@ function Router() {
       <Route path="/admin/chat" component={() => <AdminRoute component={AdminChat} />} />
       <Route path="/admin/notifications" component={() => <AdminRoute component={Notifications} />} />
       <Route path="/admin/settings" component={() => <AdminRoute component={Settings} />} />
+      <Route path="/admin/couriers" component={() => <AdminRoute component={AdminCouriers} />} />
 
       <Route component={NotFound} />
     </Switch>
@@ -128,14 +134,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </LanguageProvider>
   );
 }
 

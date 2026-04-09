@@ -23,6 +23,8 @@ tags:
     description: Customer management
   - name: messages
     description: Chat messages
+  - name: couriers
+    description: Courier management
   - name: banners
     description: Banner management
   - name: delivery
@@ -484,6 +486,158 @@ paths:
               schema:
                 $ref: "#/components/schemas/Order"
 
+  /orders/{id}/assign-courier:
+    patch:
+      operationId: assignCourier
+      tags: [orders]
+      summary: Assign or unassign courier to order (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignCourierBody"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /couriers:
+    get:
+      operationId: listCouriers
+      tags: [couriers]
+      summary: List all couriers (admin)
+      responses:
+        "200":
+          description: Couriers list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Courier"
+    post:
+      operationId: createCourier
+      tags: [couriers]
+      summary: Create a courier (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourierBody"
+      responses:
+        "201":
+          description: Created courier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Courier"
+
+  /couriers/{id}:
+    patch:
+      operationId: updateCourier
+      tags: [couriers]
+      summary: Update courier (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourierBody"
+      responses:
+        "200":
+          description: Updated courier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Courier"
+    delete:
+      operationId: deleteCourier
+      tags: [couriers]
+      summary: Delete courier (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /courier/login:
+    post:
+      operationId: courierLogin
+      tags: [couriers]
+      summary: Courier login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourierLoginBody"
+      responses:
+        "200":
+          description: Courier login response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourierLoginResponse"
+
+  /courier/location:
+    patch:
+      operationId: updateCourierLocation
+      tags: [couriers]
+      summary: Courier updates own location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourierLocationBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /courier/orders:
+    get:
+      operationId: listCourierOrders
+      tags: [couriers]
+      summary: List orders assigned to courier or with preparing status
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+
   /liked:
     get:
       operationId: getLiked
@@ -552,6 +706,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Message"
+    delete:
+      operationId: clearMessages
+      tags: [messages]
+      summary: Clear all messages for a customer
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   /messages/read:
     patch:
@@ -1122,6 +1292,21 @@ components:
         customerPhone:
           type: string
           nullable: true
+        courierId:
+          type: integer
+          nullable: true
+        courierName:
+          type: string
+          nullable: true
+        courierPhone:
+          type: string
+          nullable: true
+        courierLat:
+          type: number
+          nullable: true
+        courierLng:
+          type: number
+          nullable: true
         status:
           type: string
           enum: [new, preparing, delivered, cancelled]
@@ -1157,6 +1342,117 @@ components:
         - deliveryFee
         - items
         - createdAt
+
+    Courier:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        username:
+          type: string
+        isActive:
+          type: boolean
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        locationUpdatedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - phone
+        - username
+        - isActive
+        - createdAt
+
+    CreateCourierBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - name
+        - phone
+        - username
+        - password
+
+    UpdateCourierBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        isActive:
+          type: boolean
+
+    CourierLoginBody:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+
+    CourierLoginResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        username:
+          type: string
+      required:
+        - id
+        - name
+        - phone
+        - username
+
+    UpdateCourierLocationBody:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+      required:
+        - lat
+        - lng
+
+    AssignCourierBody:
+      type: object
+      properties:
+        courierId:
+          type: integer
+          nullable: true
 
     OrderItem:
       type: object

@@ -379,6 +379,11 @@ export const ListOrdersResponseItem = zod.object({
   customerId: zod.number(),
   customerName: zod.string().nullish(),
   customerPhone: zod.string().nullish(),
+  courierId: zod.number().nullish(),
+  courierName: zod.string().nullish(),
+  courierPhone: zod.string().nullish(),
+  courierLat: zod.number().nullish(),
+  courierLng: zod.number().nullish(),
   status: zod.enum(["new", "preparing", "delivered", "cancelled"]),
   deliveryMethod: zod.enum(["delivery", "pickup"]),
   paymentMethod: zod.enum(["cash", "card", "online"]),
@@ -422,6 +427,11 @@ export const GetOrderResponse = zod.object({
   customerId: zod.number(),
   customerName: zod.string().nullish(),
   customerPhone: zod.string().nullish(),
+  courierId: zod.number().nullish(),
+  courierName: zod.string().nullish(),
+  courierPhone: zod.string().nullish(),
+  courierLat: zod.number().nullish(),
+  courierLng: zod.number().nullish(),
   status: zod.enum(["new", "preparing", "delivered", "cancelled"]),
   deliveryMethod: zod.enum(["delivery", "pickup"]),
   paymentMethod: zod.enum(["cash", "card", "online"]),
@@ -458,6 +468,11 @@ export const UpdateOrderStatusResponse = zod.object({
   customerId: zod.number(),
   customerName: zod.string().nullish(),
   customerPhone: zod.string().nullish(),
+  courierId: zod.number().nullish(),
+  courierName: zod.string().nullish(),
+  courierPhone: zod.string().nullish(),
+  courierLat: zod.number().nullish(),
+  courierLng: zod.number().nullish(),
   status: zod.enum(["new", "preparing", "delivered", "cancelled"]),
   deliveryMethod: zod.enum(["delivery", "pickup"]),
   paymentMethod: zod.enum(["cash", "card", "online"]),
@@ -477,6 +492,177 @@ export const UpdateOrderStatusResponse = zod.object({
   ),
   createdAt: zod.string(),
 });
+
+/**
+ * @summary Assign or unassign courier to order (admin)
+ */
+export const AssignCourierParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AssignCourierBody = zod.object({
+  courierId: zod.number().nullish(),
+});
+
+export const AssignCourierResponse = zod.object({
+  id: zod.number(),
+  customerId: zod.number(),
+  customerName: zod.string().nullish(),
+  customerPhone: zod.string().nullish(),
+  courierId: zod.number().nullish(),
+  courierName: zod.string().nullish(),
+  courierPhone: zod.string().nullish(),
+  courierLat: zod.number().nullish(),
+  courierLng: zod.number().nullish(),
+  status: zod.enum(["new", "preparing", "delivered", "cancelled"]),
+  deliveryMethod: zod.enum(["delivery", "pickup"]),
+  paymentMethod: zod.enum(["cash", "card", "online"]),
+  address: zod.string().nullish(),
+  note: zod.string().nullish(),
+  totalPrice: zod.number(),
+  deliveryFee: zod.number(),
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      productId: zod.number(),
+      productName: zod.string(),
+      productImage: zod.string().nullish(),
+      quantity: zod.number(),
+      price: zod.number(),
+    }),
+  ),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary List all couriers (admin)
+ */
+export const ListCouriersResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  phone: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  locationUpdatedAt: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+export const ListCouriersResponse = zod.array(ListCouriersResponseItem);
+
+/**
+ * @summary Create a courier (admin)
+ */
+export const CreateCourierBody = zod.object({
+  name: zod.string(),
+  phone: zod.string(),
+  username: zod.string(),
+  password: zod.string(),
+  isActive: zod.boolean().optional(),
+});
+
+/**
+ * @summary Update courier (admin)
+ */
+export const UpdateCourierParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCourierBody = zod.object({
+  name: zod.string().optional(),
+  phone: zod.string().optional(),
+  username: zod.string().optional(),
+  password: zod.string().optional(),
+  isActive: zod.boolean().optional(),
+});
+
+export const UpdateCourierResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  phone: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  locationUpdatedAt: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete courier (admin)
+ */
+export const DeleteCourierParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteCourierResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Courier login
+ */
+export const CourierLoginBody = zod.object({
+  username: zod.string(),
+  password: zod.string(),
+});
+
+export const CourierLoginResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  phone: zod.string(),
+  username: zod.string(),
+});
+
+/**
+ * @summary Courier updates own location
+ */
+export const UpdateCourierLocationBody = zod.object({
+  lat: zod.number(),
+  lng: zod.number(),
+});
+
+export const UpdateCourierLocationResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary List orders assigned to courier or with preparing status
+ */
+export const ListCourierOrdersResponseItem = zod.object({
+  id: zod.number(),
+  customerId: zod.number(),
+  customerName: zod.string().nullish(),
+  customerPhone: zod.string().nullish(),
+  courierId: zod.number().nullish(),
+  courierName: zod.string().nullish(),
+  courierPhone: zod.string().nullish(),
+  courierLat: zod.number().nullish(),
+  courierLng: zod.number().nullish(),
+  status: zod.enum(["new", "preparing", "delivered", "cancelled"]),
+  deliveryMethod: zod.enum(["delivery", "pickup"]),
+  paymentMethod: zod.enum(["cash", "card", "online"]),
+  address: zod.string().nullish(),
+  note: zod.string().nullish(),
+  totalPrice: zod.number(),
+  deliveryFee: zod.number(),
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      productId: zod.number(),
+      productName: zod.string(),
+      productImage: zod.string().nullish(),
+      quantity: zod.number(),
+      price: zod.number(),
+    }),
+  ),
+  createdAt: zod.string(),
+});
+export const ListCourierOrdersResponse = zod.array(
+  ListCourierOrdersResponseItem,
+);
 
 /**
  * @summary Get liked products
@@ -536,6 +722,18 @@ export const SendMessageBody = zod.object({
   mediaUrl: zod.string().optional(),
   mediaType: zod.enum(["image", "video"]).optional(),
   senderType: zod.enum(["customer", "admin"]),
+});
+
+/**
+ * @summary Clear all messages for a customer
+ */
+export const ClearMessagesQueryParams = zod.object({
+  customerId: zod.coerce.number().optional(),
+});
+
+export const ClearMessagesResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
 });
 
 /**
@@ -732,6 +930,11 @@ export const GetRecentOrdersResponseItem = zod.object({
   customerId: zod.number(),
   customerName: zod.string().nullish(),
   customerPhone: zod.string().nullish(),
+  courierId: zod.number().nullish(),
+  courierName: zod.string().nullish(),
+  courierPhone: zod.string().nullish(),
+  courierLat: zod.number().nullish(),
+  courierLng: zod.number().nullish(),
   status: zod.enum(["new", "preparing", "delivered", "cancelled"]),
   deliveryMethod: zod.enum(["delivery", "pickup"]),
   paymentMethod: zod.enum(["cash", "card", "online"]),

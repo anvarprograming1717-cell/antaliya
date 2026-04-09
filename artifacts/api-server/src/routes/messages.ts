@@ -59,6 +59,18 @@ router.post("/messages", async (req, res): Promise<void> => {
   res.status(201).json(serialize(message));
 });
 
+router.delete("/messages", async (req, res): Promise<void> => {
+  const customerId = (req as any).customerId;
+  const queryCustomerId = req.query.customerId ? parseInt(req.query.customerId as string, 10) : null;
+  const targetId = queryCustomerId ?? customerId;
+  if (!targetId) {
+    res.status(400).json({ error: "customerId required" });
+    return;
+  }
+  await db.delete(messagesTable).where(eq(messagesTable.customerId, targetId));
+  res.json({ success: true });
+});
+
 router.patch("/messages/read", async (req, res): Promise<void> => {
   const parsed = MarkMessagesReadBody.safeParse(req.body);
   if (!parsed.success) {

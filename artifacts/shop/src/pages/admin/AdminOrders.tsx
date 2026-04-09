@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ChevronUp, MapPin, Map } from "lucide-react";
-import { useListOrders, getListOrdersQueryKey, useUpdateOrderStatus } from "@workspace/api-client-react";
+import { ChevronDown, ChevronUp, MapPin, Map, Navigation2, UserCheck, UserX } from "lucide-react";
+import {
+  useListOrders, getListOrdersQueryKey,
+  useUpdateOrderStatus, useAssignCourier,
+  useListCouriers, getListCouriersQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -62,6 +66,94 @@ function YandexMapEmbed({ address }: { address: string }) {
   );
 }
 
+function CourierSection({ order, couriers, onAssign }: { order: any; couriers: any[]; onAssign: (courierId: number | null) => void }) {
+  const [showSelect, setShowSelect] = useState(false);
+  const hasCourier = !!order.courierId;
+  const courier = couriers.find(c => c.id === order.courierId);
+  const courierLat = order.courierLat;
+  const courierLng = order.courierLng;
+  const mapUrl = courierLat && courierLng
+    ? `https://yandex.uz/map-widget/v1/?ll=${courierLng},${courierLat}&pt=${courierLng},${courierLat},pm2rdl&z=16&l=map`
+    : null;
+  const [showCourierMap, setShowCourierMap] = useState(false);
+
+  return (
+    <div className="border-t border-border pt-3 space-y-2">
+      <p className="text-sm font-semibold">Kuryer belgilash</p>
+      {hasCourier ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Navigation2 className="w-4 h-4 text-primary" />
+              <div>
+                <p className="font-semibold text-sm">{order.courierName}</p>
+                <p className="text-xs text-muted-foreground">{order.courierPhone}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {mapUrl && (
+                <button
+                  onClick={() => setShowCourierMap(!showCourierMap)}
+                  className="px-2.5 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-semibold flex items-center gap-1"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  GPS
+                </button>
+              )}
+              <button
+                onClick={() => onAssign(null)}
+                className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/20 text-red-600 rounded-lg text-xs font-semibold flex items-center gap-1"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                Olib tashlash
+              </button>
+            </div>
+          </div>
+          {showCourierMap && mapUrl && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="rounded-2xl overflow-hidden border border-border"
+            >
+              <iframe src={mapUrl} width="100%" height="220" allowFullScreen title="Kuryer GPS" className="block" />
+            </motion.div>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowSelect(!showSelect)}
+          className="flex items-center gap-2 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-all px-3 py-1.5 rounded-xl"
+        >
+          <UserCheck className="w-3.5 h-3.5" />
+          Kuryer belgilash
+        </button>
+      )}
+      {showSelect && !hasCourier && (
+        <div className="bg-muted/50 rounded-xl p-2 space-y-1.5 max-h-40 overflow-y-auto">
+          {couriers.filter(c => c.isActive).map(c => (
+            <button
+              key={c.id}
+              onClick={() => { onAssign(c.id); setShowSelect(false); }}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-background transition-colors flex items-center justify-between"
+            >
+              <div>
+                <p className="font-semibold text-sm">{c.name}</p>
+                <p className="text-xs text-muted-foreground">{c.phone}</p>
+              </div>
+              {c.lat && c.lng && (
+                <span className="text-xs text-green-600 font-semibold">GPS ✓</span>
+              )}
+            </button>
+          ))}
+          {couriers.filter(c => c.isActive).length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-2">Faol kuryerlar yo'q</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminOrders() {
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
@@ -69,13 +161,22 @@ export default function AdminOrders() {
 
   const { data: orders } = useListOrders(
     { status: filterStatus as any },
-    { query: { queryKey: getListOrdersQueryKey({ status: filterStatus as any }) } }
+    { query: { queryKey: getListOrdersQueryKey({ status: filterStatus as any }), refetchInterval: 15000 } }
   );
+  const { data: couriers = [] } = useListCouriers({ query: { queryKey: getListCouriersQueryKey() } });
   const updateStatus = useUpdateOrderStatus();
+  const assignCourier = useAssignCourier();
 
   const handleStatusChange = (id: number, status: string) => {
     updateStatus.mutate(
       { id, data: { status: status as any } },
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); } }
+    );
+  };
+
+  const handleAssignCourier = (orderId: number, courierId: number | null) => {
+    assignCourier.mutate(
+      { id: orderId, data: { courierId: courierId as any } },
       { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); } }
     );
   };
@@ -122,6 +223,12 @@ export default function AdminOrders() {
                 <div className="flex items-center gap-2">
                   <p className="font-bold">#{order.id}</p>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[order.status]}`}>{STATUS_LABELS[order.status]}</span>
+                  {order.courierId && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700 flex items-center gap-0.5">
+                      <Navigation2 className="w-3 h-3" />
+                      {order.courierName}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{order.customerName || order.customerPhone} • {new Date(order.createdAt).toLocaleString("uz-UZ")}</p>
               </div>
@@ -180,6 +287,15 @@ export default function AdminOrders() {
                     ))}
                   </div>
                 </div>
+
+                {/* Courier Assignment */}
+                {order.deliveryMethod === "delivery" && (
+                  <CourierSection
+                    order={order}
+                    couriers={couriers}
+                    onAssign={(courierId) => handleAssignCourier(order.id, courierId)}
+                  />
+                )}
               </motion.div>
             )}
           </motion.div>

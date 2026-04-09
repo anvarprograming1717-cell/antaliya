@@ -7,3 +7,4 @@ export * from "./orders";
 export * from "./messages";
 export * from "./banners";
 export * from "./settings";
+export * from "./couriers";

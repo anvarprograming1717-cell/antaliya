@@ -182,6 +182,11 @@ export interface Order {
   customerId: number;
   customerName?: string | null;
   customerPhone?: string | null;
+  courierId?: number | null;
+  courierName?: string | null;
+  courierPhone?: string | null;
+  courierLat?: number | null;
+  courierLng?: number | null;
   status: OrderStatus;
   deliveryMethod: OrderDeliveryMethod;
   paymentMethod: OrderPaymentMethod;
@@ -191,6 +196,55 @@ export interface Order {
   deliveryFee: number;
   items: OrderItem[];
   createdAt: string;
+}
+
+export interface Courier {
+  id: number;
+  name: string;
+  phone: string;
+  username: string;
+  isActive: boolean;
+  lat?: number | null;
+  lng?: number | null;
+  locationUpdatedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CreateCourierBody {
+  name: string;
+  phone: string;
+  username: string;
+  password: string;
+  isActive?: boolean;
+}
+
+export interface UpdateCourierBody {
+  name?: string;
+  phone?: string;
+  username?: string;
+  password?: string;
+  isActive?: boolean;
+}
+
+export interface CourierLoginBody {
+  username: string;
+  password: string;
+}
+
+export interface CourierLoginResponse {
+  id: number;
+  name: string;
+  phone: string;
+  username: string;
+}
+
+export interface UpdateCourierLocationBody {
+  lat: number;
+  lng: number;
+}
+
+export interface AssignCourierBody {
+  courierId?: number | null;
 }
 
 export type CreateOrderBodyDeliveryMethod =
@@ -396,6 +450,10 @@ export const ListOrdersStatus = {
 } as const;
 
 export type ListMessagesParams = {
+  customerId?: number;
+};
+
+export type ClearMessagesParams = {
   customerId?: number;
 };
 

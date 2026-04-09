@@ -15,6 +15,11 @@ export interface Order {
   customerId: number;
   customerName?: string | null;
   customerPhone?: string | null;
+  courierId?: number | null;
+  courierName?: string | null;
+  courierPhone?: string | null;
+  courierLat?: number | null;
+  courierLng?: number | null;
   status: OrderStatus;
   deliveryMethod: OrderDeliveryMethod;
   paymentMethod: OrderPaymentMethod;

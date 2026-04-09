@@ -12,7 +12,8 @@ import {
   MessageSquare, 
   Bell, 
   Settings,
-  LogOut
+  LogOut,
+  Navigation2
 } from "lucide-react";
 import { useAdminLogout } from "@workspace/api-client-react";
 import { clearAdminSession } from "@/lib/auth";
@@ -40,6 +41,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/customers", icon: Users, label: "Customers" },
     { href: "/admin/chat", icon: MessageSquare, label: "Chat" },
     { href: "/admin/notifications", icon: Bell, label: "Notifications" },
+    { href: "/admin/couriers", icon: Navigation2, label: "Couriers" },
     { href: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 

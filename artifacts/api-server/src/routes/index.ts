@@ -13,6 +13,7 @@ import deliveryRouter from "./delivery";
 import settingsRouter from "./settings";
 import statsRouter from "./stats";
 import notificationsRouter from "./notifications";
+import couriersRouter from "./couriers";
 
 const router: IRouter = Router();
 
@@ -20,6 +21,10 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
   const customerId = req.headers["x-customer-id"];
   if (customerId) {
     (req as any).customerId = parseInt(Array.isArray(customerId) ? customerId[0] : customerId, 10);
+  }
+  const courierId = req.headers["x-courier-id"];
+  if (courierId) {
+    (req as any).courierId = parseInt(Array.isArray(courierId) ? courierId[0] : courierId, 10);
   }
   next();
 });
@@ -38,5 +43,6 @@ router.use(deliveryRouter);
 router.use(settingsRouter);
 router.use(statsRouter);
 router.use(notificationsRouter);
+router.use(couriersRouter);
 
 export default router;

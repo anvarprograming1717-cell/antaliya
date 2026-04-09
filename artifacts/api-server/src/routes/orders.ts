@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable } from "@workspace/db";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -16,6 +16,18 @@ const router: IRouter = Router();
 async function enrichOrder(order: any) {
   const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
   const customer = await db.select().from(customersTable).where(eq(customersTable.id, order.customerId)).limit(1);
+  let courierData: { name?: string; phone?: string; lat?: number | null; lng?: number | null } = {};
+  if (order.courierId) {
+    const [courier] = await db.select().from(couriersTable).where(eq(couriersTable.id, order.courierId)).limit(1);
+    if (courier) {
+      courierData = {
+        name: courier.name,
+        phone: courier.phone,
+        lat: courier.lat ? parseFloat(courier.lat as string) : null,
+        lng: courier.lng ? parseFloat(courier.lng as string) : null,
+      };
+    }
+  }
   return {
     ...order,
     totalPrice: parseFloat(order.totalPrice as string),
@@ -23,10 +35,14 @@ async function enrichOrder(order: any) {
     createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
     customerName: customer[0]?.name ?? null,
     customerPhone: customer[0]?.phone ?? null,
+    courierId: order.courierId ?? null,
+    courierName: courierData.name ?? null,
+    courierPhone: courierData.phone ?? null,
+    courierLat: courierData.lat ?? null,
+    courierLng: courierData.lng ?? null,
     items: items.map(i => ({
       ...i,
       price: parseFloat(i.price as string),
-      createdAt: i.createdAt instanceof Date ? i.createdAt.toISOString() : i.createdAt,
     })),
   };
 }
@@ -150,6 +166,21 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   const [order] = await db.update(ordersTable)
     .set({ status: parsed.data.status })
     .where(eq(ordersTable.id, params.data.id))
+    .returning();
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+  const enriched = await enrichOrder(order);
+  res.json(enriched);
+});
+
+router.patch("/orders/:id/assign-courier", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  const { courierId } = req.body;
+  const [order] = await db.update(ordersTable)
+    .set({ courierId: courierId ?? null })
+    .where(eq(ordersTable.id, id))
     .returning();
   if (!order) {
     res.status(404).json({ error: "Order not found" });

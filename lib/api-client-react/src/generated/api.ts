@@ -19,11 +19,17 @@ import type {
 import type {
   AddToCartBody,
   AdminLoginBody,
+  AssignCourierBody,
   Banner,
   CartItem,
   Category,
+  ClearMessagesParams,
+  Courier,
+  CourierLoginBody,
+  CourierLoginResponse,
   CreateBannerBody,
   CreateCategoryBody,
+  CreateCourierBody,
   CreateOrderBody,
   CreateProductBody,
   Customer,
@@ -51,6 +57,8 @@ import type {
   TelegramWebhookBody,
   ToggleLikeBody,
   UpdateCartItemBody,
+  UpdateCourierBody,
+  UpdateCourierLocationBody,
   UpdateDeliveryBody,
   UpdateOrderStatusBody,
   UpdatePasswordBody,
@@ -2064,6 +2072,673 @@ export const useUpdateOrderStatus = <
 };
 
 /**
+ * @summary Assign or unassign courier to order (admin)
+ */
+export const getAssignCourierUrl = (id: number) => {
+  return `/api/orders/${id}/assign-courier`;
+};
+
+export const assignCourier = async (
+  id: number,
+  assignCourierBody: AssignCourierBody,
+  options?: RequestInit,
+): Promise<Order> => {
+  return customFetch<Order>(getAssignCourierUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(assignCourierBody),
+  });
+};
+
+export const getAssignCourierMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignCourier>>,
+    TError,
+    { id: number; data: BodyType<AssignCourierBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignCourier>>,
+  TError,
+  { id: number; data: BodyType<AssignCourierBody> },
+  TContext
+> => {
+  const mutationKey = ["assignCourier"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignCourier>>,
+    { id: number; data: BodyType<AssignCourierBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return assignCourier(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignCourierMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignCourier>>
+>;
+export type AssignCourierMutationBody = BodyType<AssignCourierBody>;
+export type AssignCourierMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Assign or unassign courier to order (admin)
+ */
+export const useAssignCourier = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignCourier>>,
+    TError,
+    { id: number; data: BodyType<AssignCourierBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignCourier>>,
+  TError,
+  { id: number; data: BodyType<AssignCourierBody> },
+  TContext
+> => {
+  return useMutation(getAssignCourierMutationOptions(options));
+};
+
+/**
+ * @summary List all couriers (admin)
+ */
+export const getListCouriersUrl = () => {
+  return `/api/couriers`;
+};
+
+export const listCouriers = async (
+  options?: RequestInit,
+): Promise<Courier[]> => {
+  return customFetch<Courier[]>(getListCouriersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCouriersQueryKey = () => {
+  return [`/api/couriers`] as const;
+};
+
+export const getListCouriersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCouriers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCouriers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCouriersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCouriers>>> = ({
+    signal,
+  }) => listCouriers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCouriers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCouriersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCouriers>>
+>;
+export type ListCouriersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all couriers (admin)
+ */
+
+export function useListCouriers<
+  TData = Awaited<ReturnType<typeof listCouriers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCouriers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCouriersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a courier (admin)
+ */
+export const getCreateCourierUrl = () => {
+  return `/api/couriers`;
+};
+
+export const createCourier = async (
+  createCourierBody: CreateCourierBody,
+  options?: RequestInit,
+): Promise<Courier> => {
+  return customFetch<Courier>(getCreateCourierUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createCourierBody),
+  });
+};
+
+export const getCreateCourierMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCourier>>,
+    TError,
+    { data: BodyType<CreateCourierBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCourier>>,
+  TError,
+  { data: BodyType<CreateCourierBody> },
+  TContext
+> => {
+  const mutationKey = ["createCourier"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCourier>>,
+    { data: BodyType<CreateCourierBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createCourier(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCourierMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCourier>>
+>;
+export type CreateCourierMutationBody = BodyType<CreateCourierBody>;
+export type CreateCourierMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a courier (admin)
+ */
+export const useCreateCourier = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCourier>>,
+    TError,
+    { data: BodyType<CreateCourierBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCourier>>,
+  TError,
+  { data: BodyType<CreateCourierBody> },
+  TContext
+> => {
+  return useMutation(getCreateCourierMutationOptions(options));
+};
+
+/**
+ * @summary Update courier (admin)
+ */
+export const getUpdateCourierUrl = (id: number) => {
+  return `/api/couriers/${id}`;
+};
+
+export const updateCourier = async (
+  id: number,
+  updateCourierBody: UpdateCourierBody,
+  options?: RequestInit,
+): Promise<Courier> => {
+  return customFetch<Courier>(getUpdateCourierUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateCourierBody),
+  });
+};
+
+export const getUpdateCourierMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCourier>>,
+    TError,
+    { id: number; data: BodyType<UpdateCourierBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCourier>>,
+  TError,
+  { id: number; data: BodyType<UpdateCourierBody> },
+  TContext
+> => {
+  const mutationKey = ["updateCourier"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCourier>>,
+    { id: number; data: BodyType<UpdateCourierBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCourier(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCourierMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCourier>>
+>;
+export type UpdateCourierMutationBody = BodyType<UpdateCourierBody>;
+export type UpdateCourierMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update courier (admin)
+ */
+export const useUpdateCourier = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCourier>>,
+    TError,
+    { id: number; data: BodyType<UpdateCourierBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCourier>>,
+  TError,
+  { id: number; data: BodyType<UpdateCourierBody> },
+  TContext
+> => {
+  return useMutation(getUpdateCourierMutationOptions(options));
+};
+
+/**
+ * @summary Delete courier (admin)
+ */
+export const getDeleteCourierUrl = (id: number) => {
+  return `/api/couriers/${id}`;
+};
+
+export const deleteCourier = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getDeleteCourierUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCourierMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCourier>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCourier>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteCourier"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCourier>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteCourier(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCourierMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCourier>>
+>;
+
+export type DeleteCourierMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete courier (admin)
+ */
+export const useDeleteCourier = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCourier>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCourier>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteCourierMutationOptions(options));
+};
+
+/**
+ * @summary Courier login
+ */
+export const getCourierLoginUrl = () => {
+  return `/api/courier/login`;
+};
+
+export const courierLogin = async (
+  courierLoginBody: CourierLoginBody,
+  options?: RequestInit,
+): Promise<CourierLoginResponse> => {
+  return customFetch<CourierLoginResponse>(getCourierLoginUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(courierLoginBody),
+  });
+};
+
+export const getCourierLoginMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof courierLogin>>,
+    TError,
+    { data: BodyType<CourierLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof courierLogin>>,
+  TError,
+  { data: BodyType<CourierLoginBody> },
+  TContext
+> => {
+  const mutationKey = ["courierLogin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof courierLogin>>,
+    { data: BodyType<CourierLoginBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return courierLogin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CourierLoginMutationResult = NonNullable<
+  Awaited<ReturnType<typeof courierLogin>>
+>;
+export type CourierLoginMutationBody = BodyType<CourierLoginBody>;
+export type CourierLoginMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Courier login
+ */
+export const useCourierLogin = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof courierLogin>>,
+    TError,
+    { data: BodyType<CourierLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof courierLogin>>,
+  TError,
+  { data: BodyType<CourierLoginBody> },
+  TContext
+> => {
+  return useMutation(getCourierLoginMutationOptions(options));
+};
+
+/**
+ * @summary Courier updates own location
+ */
+export const getUpdateCourierLocationUrl = () => {
+  return `/api/courier/location`;
+};
+
+export const updateCourierLocation = async (
+  updateCourierLocationBody: UpdateCourierLocationBody,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getUpdateCourierLocationUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateCourierLocationBody),
+  });
+};
+
+export const getUpdateCourierLocationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCourierLocation>>,
+    TError,
+    { data: BodyType<UpdateCourierLocationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCourierLocation>>,
+  TError,
+  { data: BodyType<UpdateCourierLocationBody> },
+  TContext
+> => {
+  const mutationKey = ["updateCourierLocation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCourierLocation>>,
+    { data: BodyType<UpdateCourierLocationBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateCourierLocation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCourierLocationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCourierLocation>>
+>;
+export type UpdateCourierLocationMutationBody =
+  BodyType<UpdateCourierLocationBody>;
+export type UpdateCourierLocationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Courier updates own location
+ */
+export const useUpdateCourierLocation = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCourierLocation>>,
+    TError,
+    { data: BodyType<UpdateCourierLocationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCourierLocation>>,
+  TError,
+  { data: BodyType<UpdateCourierLocationBody> },
+  TContext
+> => {
+  return useMutation(getUpdateCourierLocationMutationOptions(options));
+};
+
+/**
+ * @summary List orders assigned to courier or with preparing status
+ */
+export const getListCourierOrdersUrl = () => {
+  return `/api/courier/orders`;
+};
+
+export const listCourierOrders = async (
+  options?: RequestInit,
+): Promise<Order[]> => {
+  return customFetch<Order[]>(getListCourierOrdersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCourierOrdersQueryKey = () => {
+  return [`/api/courier/orders`] as const;
+};
+
+export const getListCourierOrdersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCourierOrders>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCourierOrders>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCourierOrdersQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listCourierOrders>>
+  > = ({ signal }) => listCourierOrders({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCourierOrders>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCourierOrdersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCourierOrders>>
+>;
+export type ListCourierOrdersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List orders assigned to courier or with preparing status
+ */
+
+export function useListCourierOrders<
+  TData = Awaited<ReturnType<typeof listCourierOrders>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCourierOrders>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCourierOrdersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Get liked products
  */
 export const getGetLikedUrl = () => {
@@ -2392,6 +3067,102 @@ export const useSendMessage = <
   TContext
 > => {
   return useMutation(getSendMessageMutationOptions(options));
+};
+
+/**
+ * @summary Clear all messages for a customer
+ */
+export const getClearMessagesUrl = (params?: ClearMessagesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/messages?${stringifiedParams}`
+    : `/api/messages`;
+};
+
+export const clearMessages = async (
+  params?: ClearMessagesParams,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getClearMessagesUrl(params), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getClearMessagesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearMessages>>,
+    TError,
+    { params?: ClearMessagesParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof clearMessages>>,
+  TError,
+  { params?: ClearMessagesParams },
+  TContext
+> => {
+  const mutationKey = ["clearMessages"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof clearMessages>>,
+    { params?: ClearMessagesParams }
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return clearMessages(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ClearMessagesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof clearMessages>>
+>;
+
+export type ClearMessagesMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Clear all messages for a customer
+ */
+export const useClearMessages = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearMessages>>,
+    TError,
+    { params?: ClearMessagesParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof clearMessages>>,
+  TError,
+  { params?: ClearMessagesParams },
+  TContext
+> => {
+  return useMutation(getClearMessagesMutationOptions(options));
 };
 
 /**
