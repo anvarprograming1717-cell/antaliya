@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Map } from "lucide-react";
 import { useListOrders, getListOrdersQueryKey, useUpdateOrderStatus } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -19,6 +19,48 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUSES = ["new", "preparing", "delivered", "cancelled"] as const;
+
+function YandexMapEmbed({ address }: { address: string }) {
+  const [showMap, setShowMap] = useState(false);
+  const encodedAddress = encodeURIComponent(address);
+  const mapUrl = `https://yandex.uz/map-widget/v1/?text=${encodedAddress}&lang=uz_UZ&z=15&l=map`;
+
+  return (
+    <div className="col-span-2">
+      <p className="text-muted-foreground mb-1">Manzil</p>
+      <div className="flex items-start gap-2">
+        <MapPin className="w-4 h-4 text-primary mt-0.5 flex-none" />
+        <p className="font-medium text-sm flex-1">{address}</p>
+      </div>
+      <button
+        onClick={() => setShowMap(!showMap)}
+        className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-all px-3 py-1.5 rounded-xl"
+      >
+        <Map className="w-3.5 h-3.5" />
+        {showMap ? "Xaritani yopish" : "Xaritada ko'rsatish"}
+      </button>
+
+      {showMap && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mt-3 rounded-2xl overflow-hidden border border-border"
+        >
+          <iframe
+            src={mapUrl}
+            width="100%"
+            height="280"
+            frameBorder="0"
+            allowFullScreen
+            title="Yetkazib berish manzili"
+            className="block"
+          />
+        </motion.div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminOrders() {
   const queryClient = useQueryClient();
@@ -105,10 +147,7 @@ export default function AdminOrders() {
                     <p className="font-medium capitalize">{order.paymentMethod}</p>
                   </div>
                   {order.address && (
-                    <div className="col-span-2">
-                      <p className="text-muted-foreground">Manzil</p>
-                      <p className="font-medium">{order.address}</p>
-                    </div>
+                    <YandexMapEmbed address={order.address} />
                   )}
                 </div>
 

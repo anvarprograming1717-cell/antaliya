@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Search, ShoppingCart, Heart, User, Clock } from "lucide-react";
+import { Home, ShoppingCart, Heart, User, Clock, ShoppingBag } from "lucide-react";
 import { useGetCart, getGetCartQueryKey } from "@workspace/api-client-react";
 
 export function CustomerLayout({ children }: { children: React.ReactNode }) {
@@ -28,15 +28,27 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 overflow-y-auto w-full h-full pb-20"
+            className="flex-1 overflow-y-auto w-full h-full pb-24"
           >
             {children}
           </motion.div>
         </AnimatePresence>
 
         {/* Bottom Tab Bar */}
-        <div className="absolute bottom-0 left-0 right-0 glass-panel border-t border-white/20 dark:border-white/10 pb-safe pt-2 px-4 z-50">
-          <div className="flex justify-between items-center pb-2">
+        <div className="absolute bottom-0 left-0 right-0 glass-panel border-t border-white/20 dark:border-white/10 pb-safe z-50">
+          {/* Logo strip */}
+          <div className="flex items-center justify-center gap-1.5 pt-2 pb-1">
+            <div className="w-5 h-5 rounded-lg bg-primary flex items-center justify-center">
+              <ShoppingBag className="w-3 h-3 text-white" strokeWidth={2.5} />
+            </div>
+            <span className="text-sm font-extrabold tracking-tight">
+              <span className="text-primary">Shop</span>
+              <span className="text-foreground">Uz</span>
+            </span>
+          </div>
+
+          {/* Nav Icons */}
+          <div className="flex justify-between items-center pb-3 px-4">
             {navItems.map((item) => {
               const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
               const Icon = item.icon;

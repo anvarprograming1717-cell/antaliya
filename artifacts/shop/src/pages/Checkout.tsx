@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, CreditCard, Truck, Package, Check } from "lucide-react";
+import { ArrowLeft, MapPin, CreditCard, Truck, Package, Check, LocateFixed, Loader2 } from "lucide-react";
 import { useGetCart, getGetCartQueryKey, useCreateOrder, getListOrdersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function Checkout() {
@@ -15,6 +14,8 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "online">("cash");
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState("");
 
   const { data: cartItems } = useGetCart({ query: { queryKey: getGetCartQueryKey() } });
   const createOrder = useCreateOrder();
@@ -22,6 +23,42 @@ export default function Checkout() {
   const subtotal = cartItems?.reduce((sum, item) => sum + (item.product.price as number) * item.quantity, 0) || 0;
   const deliveryFee = deliveryMethod === "delivery" && subtotal < 300000 ? 15000 : 0;
   const total = subtotal + deliveryFee;
+
+  const handleLocate = () => {
+    if (!navigator.geolocation) {
+      setLocateError("Brauzeringiz joylashuvni qo'llab-quvvatlamaydi");
+      return;
+    }
+    setLocating(true);
+    setLocateError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=uz`,
+            { headers: { "Accept-Language": "uz,ru,en" } }
+          );
+          const data = await res.json();
+          const addr = data.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+          setAddress(addr);
+        } catch {
+          setAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        } finally {
+          setLocating(false);
+        }
+      },
+      (err) => {
+        setLocating(false);
+        if (err.code === 1) {
+          setLocateError("Joylashuvga ruxsat berilmadi. Brauzer sozlamalarini tekshiring.");
+        } else {
+          setLocateError("Joylashuvni aniqlab bo'lmadi. Qaytadan urinib ko'ring.");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   const handleOrder = () => {
     createOrder.mutate(
@@ -79,20 +116,40 @@ export default function Checkout() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
-            className="bg-card rounded-2xl p-4 border border-border/50"
+            className="bg-card rounded-2xl p-4 border border-border/50 space-y-3"
           >
-            <h3 className="font-bold mb-3">Manzil</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold">Manzil</h3>
+              <button
+                onClick={handleLocate}
+                disabled={locating}
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 disabled:opacity-60 transition-all px-3 py-1.5 rounded-xl"
+                data-testid="button-locate"
+              >
+                {locating ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <LocateFixed className="w-3.5 h-3.5" />
+                )}
+                {locating ? "Aniqlanmoqda..." : "Joylashuvni aniqlash"}
+              </button>
+            </div>
+
             <div className="relative">
               <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
               <Textarea
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="To'liq manzilni kiriting..."
+                placeholder="To'liq manzilni kiriting yoki joylashuvni aniqlang..."
                 className="pl-10 rounded-xl resize-none"
-                rows={2}
+                rows={3}
                 data-testid="input-address"
               />
             </div>
+
+            {locateError && (
+              <p className="text-xs text-destructive">{locateError}</p>
+            )}
           </motion.div>
         )}
 
