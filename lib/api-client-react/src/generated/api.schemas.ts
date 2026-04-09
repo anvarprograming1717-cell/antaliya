@@ -247,14 +247,33 @@ export const MessageSenderType = {
   admin: "admin",
 } as const;
 
+export type MessageMediaType =
+  | (typeof MessageMediaType)[keyof typeof MessageMediaType]
+  | null;
+
+export const MessageMediaType = {
+  image: "image",
+  video: "video",
+} as const;
+
 export interface Message {
   id: number;
   customerId: number;
   senderType: MessageSenderType;
   text: string;
+  mediaUrl?: string | null;
+  mediaType?: MessageMediaType;
   isRead: boolean;
   createdAt: string;
 }
+
+export type SendMessageBodyMediaType =
+  (typeof SendMessageBodyMediaType)[keyof typeof SendMessageBodyMediaType];
+
+export const SendMessageBodyMediaType = {
+  image: "image",
+  video: "video",
+} as const;
 
 export type SendMessageBodySenderType =
   (typeof SendMessageBodySenderType)[keyof typeof SendMessageBodySenderType];
@@ -266,7 +285,9 @@ export const SendMessageBodySenderType = {
 
 export interface SendMessageBody {
   customerId?: number;
-  text: string;
+  text?: string;
+  mediaUrl?: string;
+  mediaType?: SendMessageBodyMediaType;
   senderType: SendMessageBodySenderType;
 }
 

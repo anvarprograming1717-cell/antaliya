@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { User, Phone, Globe, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X } from "lucide-react";
-import { useGetMe, getGetMeQueryKey, useUpdateMe, useLogoutCustomer } from "@workspace/api-client-react";
+import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send } from "lucide-react";
+import {
+  useGetMe, getGetMeQueryKey, useUpdateMe, useLogoutCustomer,
+  useGetSupportContact, getGetSupportContactQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getCustomerSession, clearCustomerSession } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,8 +18,10 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
+  const [showSupport, setShowSupport] = useState(false);
 
   const { data: customer, isLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const { data: supportContact } = useGetSupportContact({ query: { queryKey: getGetSupportContactQueryKey() } });
   const updateMe = useUpdateMe();
   const logoutCustomer = useLogoutCustomer();
 
@@ -140,7 +145,7 @@ export default function Profile() {
         {/* Support */}
         <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
           <button
-            onClick={() => setLocation("/chat")}
+            onClick={() => setShowSupport(!showSupport)}
             className="w-full flex items-center justify-between px-4 py-4"
             data-testid="button-support"
           >
@@ -148,8 +153,60 @@ export default function Profile() {
               <HelpCircle className="w-5 h-5 text-primary" />
               <span className="font-medium">Texnik yordam</span>
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${showSupport ? "rotate-90" : ""}`} />
           </button>
+
+          {showSupport && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-t border-border/50 px-4 py-4 space-y-3"
+            >
+              {supportContact?.phone && (
+                <a
+                  href={`tel:${supportContact.phone}`}
+                  className="flex items-center gap-3 text-sm"
+                  data-testid="link-support-phone"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center flex-none">
+                    <Phone className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Telefon</p>
+                    <p className="font-semibold">{supportContact.phone}</p>
+                  </div>
+                </a>
+              )}
+
+              {supportContact?.telegram && (
+                <a
+                  href={`https://t.me/${supportContact.telegram.replace("@", "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 text-sm"
+                  data-testid="link-support-telegram"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center flex-none">
+                    <Send className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Telegram</p>
+                    <p className="font-semibold">{supportContact.telegram}</p>
+                  </div>
+                </a>
+              )}
+
+              <button
+                onClick={() => setLocation("/chat")}
+                className="w-full flex items-center gap-3 bg-primary/10 hover:bg-primary/20 text-primary px-4 py-3 rounded-xl transition-all"
+                data-testid="button-go-to-chat"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span className="font-semibold text-sm">Admin bilan chatda gaplashing</span>
+              </button>
+            </motion.div>
+          )}
         </div>
 
         {/* Logout */}

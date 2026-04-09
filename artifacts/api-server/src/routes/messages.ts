@@ -3,7 +3,6 @@ import { eq, and } from "drizzle-orm";
 import { db, messagesTable } from "@workspace/db";
 import {
   ListMessagesQueryParams,
-  SendMessageBody,
   MarkMessagesReadBody,
 } from "@workspace/api-zod";
 
@@ -35,21 +34,27 @@ router.get("/messages", async (req, res): Promise<void> => {
 });
 
 router.post("/messages", async (req, res): Promise<void> => {
-  const parsed = SendMessageBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const { text, senderType, customerId: bodyCustomerId, mediaUrl, mediaType } = req.body;
+  if (!senderType || !["customer", "admin"].includes(senderType)) {
+    res.status(400).json({ error: "senderType required" });
     return;
   }
   const customerId = (req as any).customerId;
-  const msgCustomerId = parsed.data.customerId ?? customerId;
+  const msgCustomerId = bodyCustomerId ?? customerId;
   if (!msgCustomerId) {
     res.status(400).json({ error: "customerId required" });
     return;
   }
+  if (!text && !mediaUrl) {
+    res.status(400).json({ error: "text or mediaUrl required" });
+    return;
+  }
   const [message] = await db.insert(messagesTable).values({
     customerId: msgCustomerId,
-    senderType: parsed.data.senderType,
-    text: parsed.data.text,
+    senderType,
+    text: text ?? "",
+    mediaUrl: mediaUrl ?? null,
+    mediaType: mediaType ?? null,
   }).returning();
   res.status(201).json(serialize(message));
 });

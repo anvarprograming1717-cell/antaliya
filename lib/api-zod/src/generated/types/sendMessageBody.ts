@@ -5,10 +5,13 @@
  * E-commerce shop API
  * OpenAPI spec version: 0.1.0
  */
+import type { SendMessageBodyMediaType } from "./sendMessageBodyMediaType";
 import type { SendMessageBodySenderType } from "./sendMessageBodySenderType";
 
 export interface SendMessageBody {
   customerId?: number;
-  text: string;
+  text?: string;
+  mediaUrl?: string;
+  mediaType?: SendMessageBodyMediaType;
   senderType: SendMessageBodySenderType;
 }

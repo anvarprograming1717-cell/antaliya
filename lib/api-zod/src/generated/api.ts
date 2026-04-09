@@ -520,6 +520,8 @@ export const ListMessagesResponseItem = zod.object({
   customerId: zod.number(),
   senderType: zod.enum(["customer", "admin"]),
   text: zod.string(),
+  mediaUrl: zod.string().nullish(),
+  mediaType: zod.enum(["image", "video"]).nullish(),
   isRead: zod.boolean(),
   createdAt: zod.string(),
 });
@@ -530,7 +532,9 @@ export const ListMessagesResponse = zod.array(ListMessagesResponseItem);
  */
 export const SendMessageBody = zod.object({
   customerId: zod.number().optional(),
-  text: zod.string(),
+  text: zod.string().optional(),
+  mediaUrl: zod.string().optional(),
+  mediaType: zod.enum(["image", "video"]).optional(),
   senderType: zod.enum(["customer", "admin"]),
 });
 

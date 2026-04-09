@@ -5,6 +5,7 @@
  * E-commerce shop API
  * OpenAPI spec version: 0.1.0
  */
+import type { MessageMediaType } from "./messageMediaType";
 import type { MessageSenderType } from "./messageSenderType";
 
 export interface Message {
@@ -12,6 +13,8 @@ export interface Message {
   customerId: number;
   senderType: MessageSenderType;
   text: string;
+  mediaUrl?: string | null;
+  mediaType?: MessageMediaType;
   isRead: boolean;
   createdAt: string;
 }

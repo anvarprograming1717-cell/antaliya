@@ -22,25 +22,30 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <main className="w-full max-w-md mx-auto relative min-h-screen shadow-2xl bg-background overflow-hidden flex flex-col">
+    <div className="flex justify-center bg-background min-h-dvh">
+      <div
+        className="w-full max-w-md relative flex flex-col shadow-2xl bg-background overflow-hidden"
+        style={{ height: "100dvh" }}
+      >
+        {/* Scrollable content area */}
         <AnimatePresence mode="wait">
           <motion.div
             key={location}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 overflow-y-auto w-full h-full pb-24"
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="flex-1 overflow-y-auto"
+            style={{ paddingBottom: "88px" }}
           >
             {children}
           </motion.div>
         </AnimatePresence>
 
-        {/* Bottom Tab Bar */}
-        <div className="absolute bottom-0 left-0 right-0 glass-panel border-t border-white/20 dark:border-white/10 pb-safe z-50">
+        {/* Bottom Tab Bar — always fixed at bottom of container */}
+        <div className="absolute bottom-0 left-0 right-0 glass-panel border-t border-white/20 dark:border-white/10 z-50">
           {/* Logo strip */}
-          <div className="flex items-center justify-center gap-1.5 pt-2 pb-1">
+          <div className="flex items-center justify-center gap-1.5 pt-2 pb-0.5">
             {logoUrl ? (
               <img src={logoUrl} alt={siteName} className="h-5 w-auto max-w-[100px] object-contain" />
             ) : (
@@ -57,7 +62,7 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Nav Icons */}
-          <div className="flex justify-between items-center pb-3 px-4">
+          <div className="flex justify-between items-center pb-3 px-4 pt-1">
             {navItems.map((item) => {
               const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
               const Icon = item.icon;
@@ -65,7 +70,7 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex flex-col items-center justify-center w-16 gap-1 relative ${
+                  className={`flex flex-col items-center justify-center w-16 gap-0.5 relative ${
                     isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`}
                   data-testid={`nav-${item.label.toLowerCase()}`}
@@ -84,7 +89,7 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
             })}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -1235,6 +1235,13 @@ components:
           enum: [customer, admin]
         text:
           type: string
+        mediaUrl:
+          type: string
+          nullable: true
+        mediaType:
+          type: string
+          enum: [image, video]
+          nullable: true
         isRead:
           type: boolean
         createdAt:
@@ -1254,11 +1261,15 @@ components:
           type: integer
         text:
           type: string
+        mediaUrl:
+          type: string
+        mediaType:
+          type: string
+          enum: [image, video]
         senderType:
           type: string
           enum: [customer, admin]
       required:
-        - text
         - senderType
 
     MarkReadBody:
