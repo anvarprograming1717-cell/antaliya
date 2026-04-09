@@ -13,5 +13,6 @@ export interface Customer {
   avatarUrl?: string | null;
   language?: string | null;
   telegramId?: string | null;
+  savedAddress?: string | null;
   createdAt: string;
 }

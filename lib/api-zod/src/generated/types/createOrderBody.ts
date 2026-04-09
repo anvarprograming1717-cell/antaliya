@@ -13,4 +13,5 @@ export interface CreateOrderBody {
   paymentMethod: CreateOrderBodyPaymentMethod;
   address?: string;
   note?: string;
+  promoCode?: string;
 }

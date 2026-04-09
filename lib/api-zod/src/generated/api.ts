@@ -31,6 +31,7 @@ export const SearchCustomerResponse = zod.object({
       avatarUrl: zod.string().nullish(),
       language: zod.string().nullish(),
       telegramId: zod.string().nullish(),
+      savedAddress: zod.string().nullish(),
       createdAt: zod.string(),
     })
     .nullish(),
@@ -51,6 +52,7 @@ export const LoginCustomerResponse = zod.object({
   avatarUrl: zod.string().nullish(),
   language: zod.string().nullish(),
   telegramId: zod.string().nullish(),
+  savedAddress: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -64,6 +66,7 @@ export const GetMeResponse = zod.object({
   avatarUrl: zod.string().nullish(),
   language: zod.string().nullish(),
   telegramId: zod.string().nullish(),
+  savedAddress: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -83,6 +86,7 @@ export const UpdateMeResponse = zod.object({
   avatarUrl: zod.string().nullish(),
   language: zod.string().nullish(),
   telegramId: zod.string().nullish(),
+  savedAddress: zod.string().nullish(),
   createdAt: zod.string(),
 });
 
@@ -104,6 +108,7 @@ export const ListCustomersResponseItem = zod.object({
   avatarUrl: zod.string().nullish(),
   language: zod.string().nullish(),
   telegramId: zod.string().nullish(),
+  savedAddress: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListCustomersResponse = zod.array(ListCustomersResponseItem);
@@ -389,6 +394,8 @@ export const ListOrdersResponseItem = zod.object({
   paymentMethod: zod.enum(["cash", "card", "online"]),
   address: zod.string().nullish(),
   note: zod.string().nullish(),
+  promoCode: zod.string().nullish(),
+  discountAmount: zod.number(),
   totalPrice: zod.number(),
   deliveryFee: zod.number(),
   items: zod.array(
@@ -413,6 +420,7 @@ export const CreateOrderBody = zod.object({
   paymentMethod: zod.enum(["cash", "card", "online"]),
   address: zod.string().optional(),
   note: zod.string().optional(),
+  promoCode: zod.string().optional(),
 });
 
 /**
@@ -437,6 +445,8 @@ export const GetOrderResponse = zod.object({
   paymentMethod: zod.enum(["cash", "card", "online"]),
   address: zod.string().nullish(),
   note: zod.string().nullish(),
+  promoCode: zod.string().nullish(),
+  discountAmount: zod.number(),
   totalPrice: zod.number(),
   deliveryFee: zod.number(),
   items: zod.array(
@@ -478,6 +488,8 @@ export const UpdateOrderStatusResponse = zod.object({
   paymentMethod: zod.enum(["cash", "card", "online"]),
   address: zod.string().nullish(),
   note: zod.string().nullish(),
+  promoCode: zod.string().nullish(),
+  discountAmount: zod.number(),
   totalPrice: zod.number(),
   deliveryFee: zod.number(),
   items: zod.array(
@@ -491,6 +503,18 @@ export const UpdateOrderStatusResponse = zod.object({
     }),
   ),
   createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete an order (customer or admin)
+ */
+export const DeleteOrderParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteOrderResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
 });
 
 /**
@@ -519,6 +543,8 @@ export const AssignCourierResponse = zod.object({
   paymentMethod: zod.enum(["cash", "card", "online"]),
   address: zod.string().nullish(),
   note: zod.string().nullish(),
+  promoCode: zod.string().nullish(),
+  discountAmount: zod.number(),
   totalPrice: zod.number(),
   deliveryFee: zod.number(),
   items: zod.array(
@@ -646,6 +672,8 @@ export const ListCourierOrdersResponseItem = zod.object({
   paymentMethod: zod.enum(["cash", "card", "online"]),
   address: zod.string().nullish(),
   note: zod.string().nullish(),
+  promoCode: zod.string().nullish(),
+  discountAmount: zod.number(),
   totalPrice: zod.number(),
   deliveryFee: zod.number(),
   items: zod.array(
@@ -886,6 +914,105 @@ export const UpdateSiteSettingsResponse = zod.object({
 });
 
 /**
+ * @summary List all promo codes (admin)
+ */
+export const ListPromoCodesResponseItem = zod.object({
+  id: zod.number(),
+  code: zod.string(),
+  discountType: zod.enum(["fixed", "percent"]),
+  discountAmount: zod.number(),
+  maxUses: zod.number().nullish(),
+  usedCount: zod.number(),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const ListPromoCodesResponse = zod.array(ListPromoCodesResponseItem);
+
+/**
+ * @summary Create promo code (admin)
+ */
+export const CreatePromoCodeBody = zod.object({
+  code: zod.string(),
+  discountType: zod.enum(["fixed", "percent"]),
+  discountAmount: zod.number(),
+  maxUses: zod.number().optional(),
+  isActive: zod.boolean().optional(),
+});
+
+/**
+ * @summary Apply promo code and get discount
+ */
+export const ApplyPromoCodeBody = zod.object({
+  code: zod.string(),
+  subtotal: zod.number(),
+});
+
+export const ApplyPromoCodeResponse = zod.object({
+  discountAmount: zod.number(),
+  promoCode: zod.string(),
+  discountType: zod.string(),
+  discountPercent: zod.number().nullish(),
+});
+
+/**
+ * @summary Update promo code (admin)
+ */
+export const UpdatePromoCodeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdatePromoCodeBody = zod.object({
+  code: zod.string().optional(),
+  discountType: zod.enum(["fixed", "percent"]).optional(),
+  discountAmount: zod.number().optional(),
+  maxUses: zod.number().optional(),
+  isActive: zod.boolean().optional(),
+});
+
+export const UpdatePromoCodeResponse = zod.object({
+  id: zod.number(),
+  code: zod.string(),
+  discountType: zod.enum(["fixed", "percent"]),
+  discountAmount: zod.number(),
+  maxUses: zod.number().nullish(),
+  usedCount: zod.number(),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete promo code (admin)
+ */
+export const DeletePromoCodeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeletePromoCodeResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Get broadcast notifications (for customers)
+ */
+export const ListNotificationsResponseItem = zod.object({
+  id: zod.number(),
+  message: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListNotificationsResponse = zod.array(
+  ListNotificationsResponseItem,
+);
+
+/**
+ * @summary Mark notifications as read for current customer
+ */
+export const MarkNotificationsReadResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
  * @summary Send Telegram notification to all users
  */
 export const SendNotificationBody = zod.object({
@@ -940,6 +1067,8 @@ export const GetRecentOrdersResponseItem = zod.object({
   paymentMethod: zod.enum(["cash", "card", "online"]),
   address: zod.string().nullish(),
   note: zod.string().nullish(),
+  promoCode: zod.string().nullish(),
+  discountAmount: zod.number(),
   totalPrice: zod.number(),
   deliveryFee: zod.number(),
   items: zod.array(

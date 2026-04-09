@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Bell, Send, Check } from "lucide-react";
-import { useSendNotification } from "@workspace/api-client-react";
+import { Bell, Send, Check, Trash2 } from "lucide-react";
+import { useSendNotification, useListNotifications } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryClient } from "@tanstack/react-query";
+
+const NKEY = ["/api/notifications"];
 
 export default function Notifications() {
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
+  const qc = useQueryClient();
   const sendNotification = useSendNotification();
+  const { data: notifications = [] } = useListNotifications({ query: { queryKey: NKEY, refetchInterval: 30000 } });
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -18,6 +23,8 @@ export default function Notifications() {
         onSuccess: () => {
           setSent(true);
           setMessage("");
+          qc.invalidateQueries({ queryKey: NKEY });
+          qc.refetchQueries({ queryKey: NKEY });
           setTimeout(() => setSent(false), 3000);
         },
       }
@@ -40,7 +47,10 @@ export default function Notifications() {
       >
         <div>
           <h3 className="font-semibold mb-1">Barcha foydalanuvchilarga xabar</h3>
-          <p className="text-sm text-muted-foreground mb-4">Bu xabar Telegram bot orqali barcha ro'yxatdan o'tgan foydalanuvchilarga yuboriladi.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Bu xabar ilovada barcha foydalanuvchilarga ko'rsatiladi.
+            {" "}Telegram bot ulangan bo'lsa, Telegram'da ham yuboriladi.
+          </p>
 
           <Textarea
             value={message}
@@ -71,6 +81,25 @@ export default function Notifications() {
           )}
         </Button>
       </motion.div>
+
+      {/* Sent Notifications History */}
+      {notifications.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">Yuborilgan xabarnomalar</h3>
+          {(notifications as any[]).map((n: any, i: number) => (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className="bg-card rounded-xl border border-border/50 p-4"
+            >
+              <p className="text-sm whitespace-pre-wrap">{n.message}</p>
+              <p className="text-xs text-muted-foreground mt-2">{new Date(n.createdAt).toLocaleString("uz-UZ")}</p>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

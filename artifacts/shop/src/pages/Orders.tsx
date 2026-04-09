@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, Package, MapPin, Navigation2, User, Phone, X } from "lucide-react";
-import { useListOrders, getListOrdersQueryKey } from "@workspace/api-client-react";
+import { Clock, Package, MapPin, Navigation2, User, Phone, X, Trash2 } from "lucide-react";
+import { useListOrders, getListOrdersQueryKey, useDeleteOrder } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCustomerSession } from "@/lib/auth";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Yangi",
@@ -30,7 +32,7 @@ function CourierMapModal({ order, onClose }: { order: any; onClose: () => void }
     : null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -74,14 +76,49 @@ function CourierMapModal({ order, onClose }: { order: any; onClose: () => void }
   );
 }
 
+function DeleteOrderModal({ orderId, onConfirm, onCancel, isPending }: { orderId: number; onConfirm: () => void; onCancel: () => void; isPending: boolean }) {
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/60 flex items-end justify-center p-4" onClick={onCancel}>
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        className="bg-card rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 className="font-bold text-lg mb-2">Buyurtmani o'chirish</h3>
+        <p className="text-muted-foreground text-sm mb-5">#{orderId} raqamli buyurtma ro'yxatingizdan o'chiriladi.</p>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onCancel} className="flex-1 rounded-xl">Bekor</Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isPending} className="flex-1 rounded-xl">
+            O'chirish
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Orders() {
   const session = getCustomerSession();
+  const queryClient = useQueryClient();
   const [mapOrder, setMapOrder] = useState<any | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const { data: orders, isLoading } = useListOrders(
     { customerId: session?.id },
     { query: { queryKey: getListOrdersQueryKey({ customerId: session?.id }), refetchInterval: 30000 } }
   );
+  const deleteOrder = useDeleteOrder();
+
+  const handleDelete = (id: number) => {
+    deleteOrder.mutate({ id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+        setDeleteId(null);
+      }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -125,10 +162,24 @@ export default function Orders() {
                   <div>
                     <p className="text-sm text-muted-foreground">Buyurtma #{order.id}</p>
                     <p className="font-bold text-base mt-0.5">{(order.totalPrice as number).toLocaleString()} so'm</p>
+                    {(order.discountAmount as number) > 0 && (
+                      <p className="text-xs text-green-600 dark:text-green-400">Chegirma: -{(order.discountAmount as number).toLocaleString()} so'm</p>
+                    )}
                   </div>
-                  <span className={`text-xs font-medium px-3 py-1 rounded-full ${STATUS_COLORS[order.status]}`}>
-                    {STATUS_LABELS[order.status]}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-medium px-3 py-1 rounded-full ${STATUS_COLORS[order.status]}`}>
+                      {STATUS_LABELS[order.status]}
+                    </span>
+                    {(order.status === "delivered" || order.status === "cancelled") && (
+                      <button
+                        onClick={() => setDeleteId(order.id)}
+                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-600 transition-colors"
+                        data-testid={`button-delete-order-${order.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 mb-3">
@@ -185,6 +236,14 @@ export default function Orders() {
 
       <AnimatePresence>
         {mapOrder && <CourierMapModal order={mapOrder} onClose={() => setMapOrder(null)} />}
+        {deleteId && (
+          <DeleteOrderModal
+            orderId={deleteId}
+            onConfirm={() => handleDelete(deleteId)}
+            onCancel={() => setDeleteId(null)}
+            isPending={deleteOrder.isPending}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

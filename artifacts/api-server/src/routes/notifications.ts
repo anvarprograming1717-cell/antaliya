@@ -1,41 +1,54 @@
 import { Router, type IRouter } from "express";
-import { db, customersTable } from "@workspace/db";
-import { SendNotificationBody } from "@workspace/api-zod";
+import { db, customersTable, notificationsTable } from "@workspace/db";
+import { desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+router.get("/notifications", async (req, res): Promise<void> => {
+  const list = await db.select().from(notificationsTable).orderBy(desc(notificationsTable.createdAt)).limit(50);
+  res.json(list.map(n => ({
+    ...n,
+    createdAt: n.createdAt instanceof Date ? n.createdAt.toISOString() : n.createdAt,
+  })));
+});
+
+router.post("/notifications/read", async (req, res): Promise<void> => {
+  const customerId = (req as any).customerId;
+  if (customerId) {
+    const { eq } = await import("drizzle-orm");
+    await db.update(customersTable)
+      .set({ lastNotificationReadAt: new Date() })
+      .where(eq(customersTable.id, customerId));
+  }
+  res.json({ success: true });
+});
+
 router.post("/notifications/send", async (req, res): Promise<void> => {
-  const parsed = SendNotificationBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const { message } = req.body;
+  if (!message?.trim()) {
+    res.status(400).json({ error: "Message required" });
     return;
   }
 
+  // Save to DB so all customers can see it in-app
+  await db.insert(notificationsTable).values({ message: message.trim() });
+
+  // Also try to send via Telegram if token is configured
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  if (!TELEGRAM_BOT_TOKEN) {
-    res.json({ success: true, message: "No Telegram bot token configured" });
-    return;
+  if (TELEGRAM_BOT_TOKEN) {
+    const customers = await db.select().from(customersTable);
+    for (const customer of customers.filter(c => c.telegramId)) {
+      try {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: customer.telegramId, text: message }),
+        });
+      } catch (_) {}
+    }
   }
 
-  const customers = await db.select().from(customersTable);
-  const customersWithTelegram = customers.filter(c => c.telegramId);
-
-  let sent = 0;
-  for (const customer of customersWithTelegram) {
-    try {
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: customer.telegramId,
-          text: parsed.data.message,
-        }),
-      });
-      sent++;
-    } catch (_) {}
-  }
-
-  res.json({ success: true, message: `Sent to ${sent} users` });
+  res.json({ success: true, message: "Xabarnoma yuborildi" });
 });
 
 router.post("/telegram-webhook", async (req, res): Promise<void> => {

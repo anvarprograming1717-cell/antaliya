@@ -1,28 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, CreditCard, Truck, Package, Check, LocateFixed, Loader2 } from "lucide-react";
-import { useGetCart, getGetCartQueryKey, useCreateOrder, getListOrdersQueryKey } from "@workspace/api-client-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, MapPin, CreditCard, Truck, Package, Check, LocateFixed, Loader2, Tag, X } from "lucide-react";
+import { useGetCart, getGetCartQueryKey, useCreateOrder, getListOrdersQueryKey, useApplyPromoCode, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { getCustomerSession } from "@/lib/auth";
 
 export default function Checkout() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const session = getCustomerSession();
+
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("delivery");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "online">("cash");
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
+  const [promoInput, setPromoInput] = useState("");
+  const [promoError, setPromoError] = useState("");
+  const [promoApplied, setPromoApplied] = useState<{ code: string; discountAmount: number; discountType: string } | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
 
   const { data: cartItems } = useGetCart({ query: { queryKey: getGetCartQueryKey() } });
+  const { data: me } = useGetMe();
   const createOrder = useCreateOrder();
+  const applyPromoCode = useApplyPromoCode();
+
+  // Auto-fill saved address from server
+  useEffect(() => {
+    const serverAddr = (me as any)?.savedAddress;
+    if (serverAddr && !address) {
+      setAddress(serverAddr);
+    }
+  }, [me]);
 
   const subtotal = cartItems?.reduce((sum, item) => sum + (item.product.price as number) * item.quantity, 0) || 0;
   const deliveryFee = deliveryMethod === "delivery" && subtotal < 300000 ? 15000 : 0;
-  const total = subtotal + deliveryFee;
+  const discount = promoApplied?.discountAmount || 0;
+  const total = Math.max(0, subtotal + deliveryFee - discount);
 
   const handleLocate = () => {
     if (!navigator.geolocation) {
@@ -60,6 +79,33 @@ export default function Checkout() {
     );
   };
 
+  const handleApplyPromo = () => {
+    const code = promoInput.trim().toUpperCase();
+    if (!code) { setPromoError("Promokod kiriting"); return; }
+    setPromoError("");
+    setPromoLoading(true);
+    applyPromoCode.mutate(
+      { data: { code, subtotal } },
+      {
+        onSuccess: (data: any) => {
+          setPromoApplied({ code: data.promoCode, discountAmount: data.discountAmount, discountType: data.discountType });
+          setPromoLoading(false);
+        },
+        onError: (e: any) => {
+          const msg = e?.response?.data?.error || "Promokod noto'g'ri yoki muddati o'tgan";
+          setPromoError(msg);
+          setPromoLoading(false);
+        },
+      }
+    );
+  };
+
+  const handleRemovePromo = () => {
+    setPromoApplied(null);
+    setPromoInput("");
+    setPromoError("");
+  };
+
   const handleOrder = () => {
     createOrder.mutate(
       {
@@ -68,12 +114,17 @@ export default function Checkout() {
           paymentMethod,
           address: deliveryMethod === "delivery" ? address : undefined,
           note: note || undefined,
+          promoCode: promoApplied?.code,
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (order: any) => {
           queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+          // Cache saved address locally
+          if (deliveryMethod === "delivery" && address && session?.id) {
+            localStorage.setItem(`savedAddress_${session.id}`, address);
+          }
           setLocation("/orders");
         },
       }
@@ -126,11 +177,7 @@ export default function Checkout() {
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 disabled:opacity-60 transition-all px-3 py-1.5 rounded-xl"
                 data-testid="button-locate"
               >
-                {locating ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <LocateFixed className="w-3.5 h-3.5" />
-                )}
+                {locating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LocateFixed className="w-3.5 h-3.5" />}
                 {locating ? "Aniqlanmoqda..." : "Joylashuvni aniqlash"}
               </button>
             </div>
@@ -147,9 +194,7 @@ export default function Checkout() {
               />
             </div>
 
-            {locateError && (
-              <p className="text-xs text-destructive">{locateError}</p>
-            )}
+            {locateError && <p className="text-xs text-destructive">{locateError}</p>}
           </motion.div>
         )}
 
@@ -175,6 +220,48 @@ export default function Checkout() {
           </div>
         </div>
 
+        {/* Promo Code */}
+        <div className="bg-card rounded-2xl p-4 border border-border/50">
+          <h3 className="font-bold mb-3 flex items-center gap-2">
+            <Tag className="w-5 h-5 text-primary" />
+            Promokod
+          </h3>
+          {promoApplied ? (
+            <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 rounded-xl px-4 py-3">
+              <div>
+                <p className="font-mono font-bold text-green-700 dark:text-green-400">{promoApplied.code}</p>
+                <p className="text-sm text-green-600 dark:text-green-400">
+                  -{promoApplied.discountAmount.toLocaleString()} so'm chegirma
+                </p>
+              </div>
+              <button onClick={handleRemovePromo} className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-800 transition-colors">
+                <X className="w-4 h-4 text-green-700 dark:text-green-400" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                value={promoInput}
+                onChange={e => { setPromoInput(e.target.value.toUpperCase()); setPromoError(""); }}
+                placeholder="PROMOKOD"
+                className="rounded-xl font-mono flex-1"
+                onKeyDown={e => e.key === "Enter" && handleApplyPromo()}
+                data-testid="input-promo-code"
+              />
+              <Button
+                onClick={handleApplyPromo}
+                disabled={promoLoading || !promoInput.trim()}
+                variant="outline"
+                className="rounded-xl px-4"
+                data-testid="button-apply-promo"
+              >
+                {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Qo'llash"}
+              </Button>
+            </div>
+          )}
+          {promoError && <p className="text-xs text-destructive mt-2">{promoError}</p>}
+        </div>
+
         {/* Note */}
         <div className="bg-card rounded-2xl p-4 border border-border/50">
           <h3 className="font-bold mb-3">Izoh (ixtiyoriy)</h3>
@@ -198,6 +285,12 @@ export default function Checkout() {
             <span className="text-muted-foreground">Yetkazib berish</span>
             <span>{deliveryFee === 0 ? "Bepul" : `${deliveryFee.toLocaleString()} so'm`}</span>
           </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+              <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> Chegirma ({promoApplied?.code})</span>
+              <span>-{discount.toLocaleString()} so'm</span>
+            </div>
+          )}
           <div className="border-t pt-2 flex justify-between font-bold">
             <span>Jami</span>
             <span className="text-primary">{total.toLocaleString()} so'm</span>

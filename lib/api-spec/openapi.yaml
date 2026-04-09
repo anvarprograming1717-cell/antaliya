@@ -486,6 +486,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/Order"
 
+  /orders/{id}/delete:
+    delete:
+      operationId: deleteOrder
+      tags: [orders]
+      summary: Delete an order (customer or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   /orders/{id}/assign-courier:
     patch:
       operationId: assignCourier
@@ -938,6 +957,127 @@ paths:
               schema:
                 $ref: "#/components/schemas/SiteSettings"
 
+  /promo-codes:
+    get:
+      operationId: listPromoCodes
+      tags: [orders]
+      summary: List all promo codes (admin)
+      responses:
+        "200":
+          description: Promo codes list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PromoCode"
+    post:
+      operationId: createPromoCode
+      tags: [orders]
+      summary: Create promo code (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoCodeBody"
+      responses:
+        "201":
+          description: Created promo code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCode"
+
+  /promo-codes/apply:
+    post:
+      operationId: applyPromoCode
+      tags: [orders]
+      summary: Apply promo code and get discount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyPromoCodeBody"
+      responses:
+        "200":
+          description: Discount information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplyPromoCodeResponse"
+
+  /promo-codes/{id}:
+    patch:
+      operationId: updatePromoCode
+      tags: [orders]
+      summary: Update promo code (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePromoCodeBody"
+      responses:
+        "200":
+          description: Updated promo code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCode"
+    delete:
+      operationId: deletePromoCode
+      tags: [orders]
+      summary: Delete promo code (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: Get broadcast notifications (for customers)
+      responses:
+        "200":
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/read:
+    post:
+      operationId: markNotificationsRead
+      tags: [notifications]
+      summary: Mark notifications as read for current customer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   /notifications/send:
     post:
       operationId: sendNotification
@@ -1056,6 +1196,9 @@ components:
           type: string
           nullable: true
         telegramId:
+          type: string
+          nullable: true
+        savedAddress:
           type: string
           nullable: true
         createdAt:
@@ -1322,6 +1465,11 @@ components:
         note:
           type: string
           nullable: true
+        promoCode:
+          type: string
+          nullable: true
+        discountAmount:
+          type: number
         totalPrice:
           type: number
         deliveryFee:
@@ -1338,6 +1486,7 @@ components:
         - status
         - deliveryMethod
         - paymentMethod
+        - discountAmount
         - totalPrice
         - deliveryFee
         - items
@@ -1490,9 +1639,117 @@ components:
           type: string
         note:
           type: string
+        promoCode:
+          type: string
       required:
         - deliveryMethod
         - paymentMethod
+
+    PromoCode:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        discountType:
+          type: string
+          enum: [fixed, percent]
+        discountAmount:
+          type: number
+        maxUses:
+          type: integer
+          nullable: true
+        usedCount:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - code
+        - discountType
+        - discountAmount
+        - usedCount
+        - isActive
+        - createdAt
+
+    CreatePromoCodeBody:
+      type: object
+      properties:
+        code:
+          type: string
+        discountType:
+          type: string
+          enum: [fixed, percent]
+        discountAmount:
+          type: number
+        maxUses:
+          type: integer
+        isActive:
+          type: boolean
+      required:
+        - code
+        - discountType
+        - discountAmount
+
+    UpdatePromoCodeBody:
+      type: object
+      properties:
+        code:
+          type: string
+        discountType:
+          type: string
+          enum: [fixed, percent]
+        discountAmount:
+          type: number
+        maxUses:
+          type: integer
+        isActive:
+          type: boolean
+
+    ApplyPromoCodeBody:
+      type: object
+      properties:
+        code:
+          type: string
+        subtotal:
+          type: number
+      required:
+        - code
+        - subtotal
+
+    ApplyPromoCodeResponse:
+      type: object
+      properties:
+        discountAmount:
+          type: number
+        promoCode:
+          type: string
+        discountType:
+          type: string
+        discountPercent:
+          type: number
+          nullable: true
+      required:
+        - discountAmount
+        - promoCode
+        - discountType
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - message
+        - createdAt
 
     UpdateOrderStatusBody:
       type: object

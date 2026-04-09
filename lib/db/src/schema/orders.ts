@@ -13,6 +13,8 @@ export const ordersTable = pgTable("orders", {
   paymentMethod: text("payment_method", { enum: ["cash", "card", "online"] }).notNull(),
   address: text("address"),
   note: text("note"),
+  promoCode: text("promo_code"),
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull(),
   deliveryFee: numeric("delivery_fee", { precision: 12, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

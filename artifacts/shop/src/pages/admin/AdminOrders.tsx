@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ChevronUp, MapPin, Map, Navigation2, UserCheck, UserX } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Map, Navigation2, UserCheck, UserX, Trash2, MessageSquare, Tag } from "lucide-react";
 import {
   useListOrders, getListOrdersQueryKey,
-  useUpdateOrderStatus, useAssignCourier,
+  useUpdateOrderStatus, useAssignCourier, useDeleteOrder,
   useListCouriers, getListCouriersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Yangi",
@@ -158,6 +159,7 @@ export default function AdminOrders() {
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const { data: orders } = useListOrders(
     { status: filterStatus as any },
@@ -166,6 +168,7 @@ export default function AdminOrders() {
   const { data: couriers = [] } = useListCouriers({ query: { queryKey: getListCouriersQueryKey() } });
   const updateStatus = useUpdateOrderStatus();
   const assignCourier = useAssignCourier();
+  const deleteOrder = useDeleteOrder();
 
   const handleStatusChange = (id: number, status: string) => {
     updateStatus.mutate(
@@ -179,6 +182,16 @@ export default function AdminOrders() {
       { id: orderId, data: { courierId: courierId as any } },
       { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); } }
     );
+  };
+
+  const handleDelete = (id: number) => {
+    deleteOrder.mutate({ id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+        setDeleteId(null);
+        setExpandedId(null);
+      }
+    });
   };
 
   return (
@@ -220,7 +233,7 @@ export default function AdminOrders() {
               onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
             >
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-bold">#{order.id}</p>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[order.status]}`}>{STATUS_LABELS[order.status]}</span>
                   {order.courierId && (
@@ -229,11 +242,20 @@ export default function AdminOrders() {
                       {order.courierName}
                     </span>
                   )}
+                  {order.note && <MessageSquare className="w-3.5 h-3.5 text-amber-500" />}
+                  {order.promoCode && <Tag className="w-3.5 h-3.5 text-green-500" />}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{order.customerName || order.customerPhone} • {new Date(order.createdAt).toLocaleString("uz-UZ")}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <p className="font-bold">{(order.totalPrice as number).toLocaleString()} so'm</p>
+                <button
+                  onClick={e => { e.stopPropagation(); setDeleteId(order.id); }}
+                  className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-600 transition-colors"
+                  data-testid={`button-delete-order-${order.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
                 {expandedId === order.id ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
               </div>
             </div>
@@ -253,6 +275,24 @@ export default function AdminOrders() {
                     <p className="text-muted-foreground">To'lov</p>
                     <p className="font-medium capitalize">{order.paymentMethod}</p>
                   </div>
+                  {order.promoCode && (
+                    <div className="col-span-2 flex items-center gap-2 bg-green-50 dark:bg-green-900/20 rounded-xl px-3 py-2">
+                      <Tag className="w-4 h-4 text-green-600" />
+                      <span className="text-green-700 dark:text-green-400 text-sm">
+                        Promokod: <strong>{order.promoCode}</strong>
+                        {order.discountAmount > 0 && ` — ${(order.discountAmount as number).toLocaleString()} so'm chegirma`}
+                      </span>
+                    </div>
+                  )}
+                  {order.note && (
+                    <div className="col-span-2 flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-3 py-2">
+                      <MessageSquare className="w-4 h-4 text-amber-600 mt-0.5 flex-none" />
+                      <div>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Izoh:</p>
+                        <p className="text-sm font-medium">{order.note}</p>
+                      </div>
+                    </div>
+                  )}
                   {order.address && (
                     <YandexMapEmbed address={order.address} />
                   )}
@@ -305,6 +345,30 @@ export default function AdminOrders() {
           <div className="text-center py-10 text-muted-foreground">Buyurtmalar topilmadi</div>
         )}
       </div>
+
+      {deleteId && (
+        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+          >
+            <h3 className="font-bold text-lg mb-2">Buyurtmani o'chirish</h3>
+            <p className="text-muted-foreground text-sm mb-5">#{deleteId} raqamli buyurtma butunlay o'chiriladi.</p>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setDeleteId(null)} className="flex-1 rounded-xl">Bekor</Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleDelete(deleteId)}
+                disabled={deleteOrder.isPending}
+                className="flex-1 rounded-xl"
+              >
+                O'chirish
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

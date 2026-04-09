@@ -25,6 +25,8 @@ export interface Order {
   paymentMethod: OrderPaymentMethod;
   address?: string | null;
   note?: string | null;
+  promoCode?: string | null;
+  discountAmount: number;
   totalPrice: number;
   deliveryFee: number;
   items: OrderItem[];

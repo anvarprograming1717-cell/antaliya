@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable, promoCodesTable, promoCodeUsagesTable } from "@workspace/db";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -32,6 +32,7 @@ async function enrichOrder(order: any) {
     ...order,
     totalPrice: parseFloat(order.totalPrice as string),
     deliveryFee: parseFloat(order.deliveryFee as string),
+    discountAmount: parseFloat(order.discountAmount as string) || 0,
     createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
     customerName: customer[0]?.name ?? null,
     customerPhone: customer[0]?.phone ?? null,
@@ -40,6 +41,7 @@ async function enrichOrder(order: any) {
     courierPhone: courierData.phone ?? null,
     courierLat: courierData.lat ?? null,
     courierLng: courierData.lng ?? null,
+    promoCode: order.promoCode ?? null,
     items: items.map(i => ({
       ...i,
       price: parseFloat(i.price as string),
@@ -101,7 +103,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   const deliverySettings = await db.select().from(settingsTable);
   const feeStr = deliverySettings.find(s => s.key === "deliveryFee")?.value ?? "15000";
   const thresholdStr = deliverySettings.find(s => s.key === "freeDeliveryThreshold")?.value ?? "200000";
-  
+
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + parseFloat(item.product.price as string) * item.quantity;
   }, 0);
@@ -109,7 +111,27 @@ router.post("/orders", async (req, res): Promise<void> => {
   const deliveryFee = parsed.data.deliveryMethod === "delivery" && subtotal < parseFloat(thresholdStr)
     ? parseFloat(feeStr)
     : 0;
-  const totalPrice = subtotal + deliveryFee;
+
+  // Handle promo code
+  let discountAmount = 0;
+  let appliedPromoCode: string | null = null;
+  if (parsed.data.promoCode) {
+    const upper = parsed.data.promoCode.toUpperCase().trim();
+    const [promo] = await db.select().from(promoCodesTable).where(eq(promoCodesTable.code, upper)).limit(1);
+    if (promo && promo.isActive) {
+      const alreadyUsed = await db.select().from(promoCodeUsagesTable)
+        .where(and(eq(promoCodeUsagesTable.promoCodeId, promo.id), eq(promoCodeUsagesTable.customerId, customerId)))
+        .limit(1);
+      const limitOk = promo.maxUses == null || promo.usedCount < promo.maxUses;
+      if (alreadyUsed.length === 0 && limitOk) {
+        const da = parseFloat(promo.discountAmount as string);
+        discountAmount = promo.discountType === "fixed" ? da : (subtotal * da) / 100;
+        appliedPromoCode = promo.code;
+      }
+    }
+  }
+
+  const totalPrice = Math.max(0, subtotal + deliveryFee - discountAmount);
 
   const [order] = await db.insert(ordersTable).values({
     customerId,
@@ -118,6 +140,8 @@ router.post("/orders", async (req, res): Promise<void> => {
     paymentMethod: parsed.data.paymentMethod,
     address: parsed.data.address ?? null,
     note: parsed.data.note ?? null,
+    promoCode: appliedPromoCode,
+    discountAmount: String(discountAmount),
     totalPrice: String(totalPrice),
     deliveryFee: String(deliveryFee),
   }).returning();
@@ -130,6 +154,28 @@ router.post("/orders", async (req, res): Promise<void> => {
     quantity: item.quantity,
     price: item.product.price,
   })));
+
+  // Mark promo code as used
+  if (appliedPromoCode) {
+    const [promo] = await db.select().from(promoCodesTable).where(eq(promoCodesTable.code, appliedPromoCode)).limit(1);
+    if (promo) {
+      await db.insert(promoCodeUsagesTable).values({
+        promoCodeId: promo.id,
+        customerId,
+        orderId: order.id,
+      });
+      await db.update(promoCodesTable)
+        .set({ usedCount: promo.usedCount + 1 })
+        .where(eq(promoCodesTable.id, promo.id));
+    }
+  }
+
+  // Save address to customer profile
+  if (parsed.data.address && parsed.data.deliveryMethod === "delivery") {
+    await db.update(customersTable)
+      .set({ savedAddress: parsed.data.address })
+      .where(eq(customersTable.id, customerId));
+  }
 
   await db.delete(cartTable).where(eq(cartTable.customerId, customerId));
 
@@ -173,6 +219,25 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   }
   const enriched = await enrichOrder(order);
   res.json(enriched);
+});
+
+router.delete("/orders/:id/delete", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  const customerId = (req as any).customerId;
+  const isAdmin = (req as any).isAdmin;
+  if (!customerId && !isAdmin) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (customerId && !isAdmin) {
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+    if (!order || order.customerId !== customerId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+  }
+  await db.delete(ordersTable).where(eq(ordersTable.id, id));
+  res.json({ success: true });
 });
 
 router.patch("/orders/:id/assign-courier", async (req, res): Promise<void> => {

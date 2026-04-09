@@ -21,6 +21,7 @@ export interface Customer {
   avatarUrl?: string | null;
   language?: string | null;
   telegramId?: string | null;
+  savedAddress?: string | null;
   createdAt: string;
 }
 
@@ -192,6 +193,8 @@ export interface Order {
   paymentMethod: OrderPaymentMethod;
   address?: string | null;
   note?: string | null;
+  promoCode?: string | null;
+  discountAmount: number;
   totalPrice: number;
   deliveryFee: number;
   items: OrderItem[];
@@ -269,6 +272,76 @@ export interface CreateOrderBody {
   paymentMethod: CreateOrderBodyPaymentMethod;
   address?: string;
   note?: string;
+  promoCode?: string;
+}
+
+export type PromoCodeDiscountType =
+  (typeof PromoCodeDiscountType)[keyof typeof PromoCodeDiscountType];
+
+export const PromoCodeDiscountType = {
+  fixed: "fixed",
+  percent: "percent",
+} as const;
+
+export interface PromoCode {
+  id: number;
+  code: string;
+  discountType: PromoCodeDiscountType;
+  discountAmount: number;
+  maxUses?: number | null;
+  usedCount: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type CreatePromoCodeBodyDiscountType =
+  (typeof CreatePromoCodeBodyDiscountType)[keyof typeof CreatePromoCodeBodyDiscountType];
+
+export const CreatePromoCodeBodyDiscountType = {
+  fixed: "fixed",
+  percent: "percent",
+} as const;
+
+export interface CreatePromoCodeBody {
+  code: string;
+  discountType: CreatePromoCodeBodyDiscountType;
+  discountAmount: number;
+  maxUses?: number;
+  isActive?: boolean;
+}
+
+export type UpdatePromoCodeBodyDiscountType =
+  (typeof UpdatePromoCodeBodyDiscountType)[keyof typeof UpdatePromoCodeBodyDiscountType];
+
+export const UpdatePromoCodeBodyDiscountType = {
+  fixed: "fixed",
+  percent: "percent",
+} as const;
+
+export interface UpdatePromoCodeBody {
+  code?: string;
+  discountType?: UpdatePromoCodeBodyDiscountType;
+  discountAmount?: number;
+  maxUses?: number;
+  isActive?: boolean;
+}
+
+export interface ApplyPromoCodeBody {
+  code: string;
+  subtotal: number;
+}
+
+export interface ApplyPromoCodeResponse {
+  discountAmount: number;
+  promoCode: string;
+  discountType: string;
+  discountPercent?: number | null;
+}
+
+export interface Notification {
+  id: number;
+  message: string;
+  createdAt: string;
 }
 
 export type UpdateOrderStatusBodyStatus =
