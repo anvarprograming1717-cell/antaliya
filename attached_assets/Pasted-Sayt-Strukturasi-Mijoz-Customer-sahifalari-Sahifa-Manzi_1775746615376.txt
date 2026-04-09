@@ -1,0 +1,48 @@
+Sayt Strukturasi
+Mijoz (Customer) sahifalari
+Sahifa Manzil Funksiya
+Katalog / Barcha mahsulotlar ro'yxati, kategoriyalar, banner
+Mahsulot /product/:id Rasm galereyasi, narx, miqdor, savatchaga qo'shish, like, sharhlar
+Savatcha /cart Savatchadagi mahsulotlar, miqdor o'zgartirish, o'chirish
+Buyurtma /checkout Telefon, yetkazib berish usuli, to'lov usuli, izoh
+Buyurtmalar /orders Barcha buyurtmalar tarixi va holati
+Sevimlilar /liked Like bosgan mahsulotlar
+Chat /chat Admin bilan xabar almashish
+Profil /profile Ism, rasm, til, mavzu, texnik yordam, chiqish
+Kirish /login Telefon bilan kirish
+Ro'yxat /signup Yangi akkaunt
+Admin sahifalari (/admin/...)
+Sahifa Funksiya
+Dashboard Statistika (buyurtmalar, mijozlar, daromad)
+Mahsulotlar Qo'shish, tahrirlash, o'chirish, rasm yuklash
+Kategoriyalar Kategoriya boshqaruvi
+Bannerlar Bosh sahifa bannerlari
+Yetkazib berish Narx va bepul yetkazib berish chegarasi
+Buyurtmalar Yangi/tayyorlangan/yetkazildi holatlari
+Mijozlar Ro'yxatdagi barcha foydalanuvchilar
+Chat Mijozlar bilan xabar almashish
+Xabarnoma Barcha foydalanuvchilarga Telegram xabar yuborish
+Sozlamalar Parol o'zgartirish, texnik yordam kontakti, logo
+Texnologiyalar
+Qism Texnologiya
+Frontend React + TypeScript + Vite
+UI Tailwind CSS + shadcn/ui
+Routing Wouter
+State TanStack Query (React Query)
+Backend Express.js
+Database SQLite (better-sqlite3) + Drizzle ORM
+Bot Telegram Bot API (webhook)
+I18n i18next (uz/ru/en)
+Server API asosiy endpointlari
+Endpoint Funksiya
+POST /api/customers/search Telefon bo'yicha foydalanuvchi qidirish
+GET /api/products Mahsulotlar ro'yxati
+GET /api/cart Savatcha
+POST /api/orders Buyurtma yaratish
+POST /api/messages/send Chat xabari yuborish
+GET /api/support-contact Texnik yordam kontakti
+PATCH /api/admin/support-contact Texnik yordam kontaktini yangilash
+POST /api/telegram-webhook Telegram bot webhook
+va ahost serverga joylaganimda sen qilib bergan siteni error va xatolik chimasin va dizayn profisional darajada bolsin va frontend va backend da bolsin site va media pro darajada bolsin
+
+
