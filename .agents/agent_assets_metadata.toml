@@ -48,3 +48,9 @@ id = "B_DAh-Zbb12lKCsgiQkFP"
 uri = "file://shopuz-mysql.tar.gz"
 type = "unspecified"
 title = "ShopUz MySQL — cPanel uchun eng to‘g‘ri versiya"
+
+[[outputs]]
+id = "B6HH5Fjh6_-VK7WC7Oq7H"
+uri = "file://shopuz-final.tar.gz"
+type = "unspecified"
+title = "ShopUz FINAL — 4.3MB (node_modules ichida, npm install kerak emas)"
