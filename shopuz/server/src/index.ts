@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
-import { fileURLToPath } from "url";
 import { existsSync } from "fs";
 import "./db.js";
 import authRouter from "./routes/auth.js";
@@ -18,7 +17,10 @@ import promoCodesRouter from "./routes/promoCodes.js";
 import notificationsRouter from "./routes/notifications.js";
 import uploadRouter from "./routes/upload.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// __dirname is available in CJS; for ESM builds use fileURLToPath
+const _dirname: string = typeof __dirname !== "undefined"
+  ? __dirname
+  : path.dirname(new URL(import.meta.url).pathname);
 const app = express();
 
 app.use(cors());
@@ -35,7 +37,7 @@ app.use((req, res, next) => {
 });
 
 // Static files (uploaded images)
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static(path.join(_dirname, "../uploads")));
 
 // API routes
 app.use("/api", authRouter);
@@ -54,10 +56,10 @@ app.use("/api", uploadRouter);
 
 // Serve built frontend (production)
 // Check for public/ inside dist (bundled deployment) or client/dist (dev build)
-const publicDir = path.join(__dirname, "public");
+const publicDir = path.join(_dirname, "public");
 const clientDist = existsSync(publicDir)
   ? publicDir
-  : path.join(__dirname, "../../client/dist");
+  : path.join(_dirname, "../../client/dist");
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(clientDist));

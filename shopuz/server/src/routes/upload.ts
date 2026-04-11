@@ -1,11 +1,12 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { fileURLToPath } from "url";
 import fs from "fs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadDir = path.join(__dirname, "../../uploads");
+const _dirname: string = typeof __dirname !== "undefined"
+  ? __dirname
+  : path.dirname(new URL(import.meta.url).pathname);
+const uploadDir = path.join(_dirname, "../../uploads");
 
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 

@@ -18,3 +18,9 @@ id = "T0KCxtz6WicC50pqJ7cZu"
 uri = "file://shopuz-v2.tar.gz"
 type = "unspecified"
 title = "ShopUz v2 — cPanel/Passenger to’liq tayyor"
+
+[[outputs]]
+id = "n6U5g---Y4UP7ucAsqgoY"
+uri = "file://shopuz-v3.tar.gz"
+type = "unspecified"
+title = "ShopUz v3 — To’liq ishlaydigan (test qilingan)"
