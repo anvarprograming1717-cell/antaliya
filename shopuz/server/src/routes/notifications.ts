@@ -20,7 +20,7 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
 router.post("/notifications/read", async (req, res): Promise<void> => {
   const customerId = (req as any).customerId;
   if (!customerId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  await db.update(customersTable).set({ lastNotificationReadAt: new Date().toISOString() }).where(eq(customersTable.id, customerId));
+  await db.update(customersTable).set({ lastNotificationReadAt: new Date() }).where(eq(customersTable.id, customerId));
   res.json({ success: true });
 });
 

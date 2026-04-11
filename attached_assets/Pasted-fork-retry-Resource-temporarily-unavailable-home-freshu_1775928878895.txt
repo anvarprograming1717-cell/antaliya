@@ -1,0 +1,40 @@
+fork: retry: Resource temporarily unavailable
+/home/freshuz/nodevenv/public_html/shopuz/20/bin/npm: fork: retry: Resource temporarily unavailable
+/home/freshuz/nodevenv/public_html/shopuz/20/bin/npm: fork: retry: Resource temporarily unavailable
+/home/freshuz/nodevenv/public_html/shopuz/20/bin/npm: fork: retry: Resource temporarily unavailable
+/home/freshuz/nodevenv/public_html/shopuz/20/bin/npm: fork: Resource temporarily unavailable
+npm error code 254
+npm error path /home/freshuz/nodevenv/public_html/shopuz/20/lib
+npm error command failed
+npm error command sh -c npm install
+npm error A complete log of this run can be found in: /home/freshuz/.npm/_logs/2026-04-11T17_34_09_019Z-debug-0.log
+npm error code 254
+npm error path /home/freshuz/nodevenv/public_html/shopuz/20/lib
+npm error command failed
+npm error command sh -c npm install
+npm error A complete log of this run can be found in: /home/freshuz/.npm/_logs/2026-04-11T17_34_08_074Z-debug-0.log
+npm error code 254
+npm error path /home/freshuz/nodevenv/public_html/shopuz/20/lib
+npm error command failed
+npm error command sh -c npm install
+npm error A complete log of this run can be found in: /home/freshuz/.npm/_logs/2026-04-11T17_34_07_116Z-debug-0.log
+npm error code 254
+npm error path /home/freshuz/nodevenv/public_html/shopuz/20/lib
+npm error command failed
+npm error command sh -c npm install
+npm error A complete log of this run can be found in: /home/freshuz/.npm/_logs/2026-04-11T17_34_06_185Z-debug-0.log
+npm error code 254
+npm error path /home/freshuz/nodevenv/public_html/shopuz/20/lib
+npm error command failed
+npm error command sh -c npm install
+npm error A complete log of this run can be found in: /home/freshuz/.npm/_logs/2026-04-11T17_34_05_241Z-debug-0.log
+npm error code 254
+npm error path /home/freshuz/nodevenv/public_html/shopuz/20/lib
+npm error command failed
+npm error command sh -c npm install
+npm error A complete log of this run can be found in: /home/freshuz/.npm/_logs/2026-04-11T17_34_04_284Z-debug-0.log
+npm error code 254
+npm error path /home/freshuz/nodevenv/public_html/shopuz/20/lib
+npm error command failed
+npm error command sh -c npm install
+npm error A complete log of this run can be found in: /home/freshuz/.npm/_logs/2026-04-11T17_34_03_290Z-debug-0.log

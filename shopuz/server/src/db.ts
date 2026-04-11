@@ -1,172 +1,181 @@
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import mysql from "mysql2/promise";
+import { drizzle } from "drizzle-orm/mysql2";
 import * as schema from "./schema.js";
-import path from "path";
 
-const dbPath = process.env.DB_PATH
-  ? path.resolve(process.env.DB_PATH)
-  : path.resolve("./shopuz.db");
-
-const client = createClient({
-  url: `file:${dbPath}`,
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "shopuz",
+  port: Number(process.env.DB_PORT) || 3306,
+  waitForConnections: true,
+  connectionLimit: 5,
+  multipleStatements: true,
 });
 
-export const db = drizzle(client, { schema });
+export const db = drizzle(pool, { schema, mode: "default" });
 
-// Auto-create all tables on startup
 async function initDb() {
-  await client.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      image_url TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+  const conn = await pool.getConnection();
+  try {
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        image_url TEXT,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS customers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      phone TEXT NOT NULL UNIQUE,
-      name TEXT,
-      avatar_url TEXT,
-      language TEXT DEFAULT 'uz',
-      telegram_id TEXT,
-      saved_address TEXT,
-      last_notification_read_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS customers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        phone VARCHAR(20) NOT NULL UNIQUE,
+        name VARCHAR(255),
+        avatar_url TEXT,
+        language VARCHAR(10) DEFAULT 'uz',
+        telegram_id VARCHAR(100),
+        saved_address TEXT,
+        last_notification_read_at DATETIME,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS couriers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      phone TEXT NOT NULL,
-      username TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      lat REAL,
-      lng REAL,
-      location_updated_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS couriers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        username VARCHAR(100) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        lat DOUBLE,
+        lng DOUBLE,
+        location_updated_at DATETIME,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      description TEXT,
-      price REAL NOT NULL,
-      old_price REAL,
-      images TEXT NOT NULL DEFAULT '[]',
-      category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-      in_stock INTEGER NOT NULL DEFAULT 1,
-      unit TEXT NOT NULL DEFAULT 'dona',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS products (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        price DOUBLE NOT NULL,
+        old_price DOUBLE,
+        images TEXT NOT NULL DEFAULT '[]',
+        category_id INT,
+        in_stock TINYINT(1) NOT NULL DEFAULT 1,
+        unit VARCHAR(50) NOT NULL DEFAULT 'dona',
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS cart (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-      quantity INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS cart (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NOT NULL,
+        product_id INT NOT NULL,
+        quantity INT NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS liked (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS liked (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NOT NULL,
+        product_id INT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS orders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      courier_id INTEGER REFERENCES couriers(id),
-      status TEXT NOT NULL DEFAULT 'new',
-      delivery_method TEXT NOT NULL,
-      payment_method TEXT NOT NULL,
-      address TEXT,
-      note TEXT,
-      promo_code TEXT,
-      discount_amount REAL NOT NULL DEFAULT 0,
-      total_price REAL NOT NULL,
-      delivery_fee REAL NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS orders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NOT NULL,
+        courier_id INT,
+        status VARCHAR(50) NOT NULL DEFAULT 'new',
+        delivery_method VARCHAR(50) NOT NULL,
+        payment_method VARCHAR(50) NOT NULL,
+        address TEXT,
+        note TEXT,
+        promo_code VARCHAR(100),
+        discount_amount DOUBLE NOT NULL DEFAULT 0,
+        total_price DOUBLE NOT NULL,
+        delivery_fee DOUBLE NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS order_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-      product_id INTEGER NOT NULL,
-      product_name TEXT NOT NULL,
-      product_image TEXT,
-      quantity INTEGER NOT NULL,
-      price REAL NOT NULL
-    );
+      CREATE TABLE IF NOT EXISTS order_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id INT NOT NULL,
+        product_id INT NOT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        product_image TEXT,
+        quantity INT NOT NULL,
+        price DOUBLE NOT NULL
+      );
 
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      sender_type TEXT NOT NULL,
-      text TEXT NOT NULL DEFAULT '',
-      media_url TEXT,
-      media_type TEXT,
-      is_read INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NOT NULL,
+        sender_type VARCHAR(20) NOT NULL,
+        text TEXT NOT NULL DEFAULT '',
+        media_url TEXT,
+        media_type VARCHAR(50),
+        is_read TINYINT(1) NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS banners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      image_url TEXT NOT NULL,
-      title TEXT,
-      link TEXT,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS banners (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        image_url TEXT NOT NULL,
+        title VARCHAR(255),
+        link TEXT,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      key TEXT NOT NULL UNIQUE,
-      value TEXT NOT NULL,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        \`key\` VARCHAR(100) NOT NULL UNIQUE,
+        value TEXT NOT NULL,
+        updated_at DATETIME NOT NULL DEFAULT NOW() ON UPDATE NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS promo_codes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT NOT NULL UNIQUE,
-      discount_type TEXT NOT NULL DEFAULT 'fixed',
-      discount_amount REAL NOT NULL,
-      max_uses INTEGER,
-      used_count INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS promo_codes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(100) NOT NULL UNIQUE,
+        discount_type VARCHAR(20) NOT NULL DEFAULT 'fixed',
+        discount_amount DOUBLE NOT NULL,
+        max_uses INT,
+        used_count INT NOT NULL DEFAULT 0,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS promo_code_usages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      promo_code_id INTEGER NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
-      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      order_id INTEGER,
-      used_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS promo_code_usages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        promo_code_id INT NOT NULL,
+        customer_id INT NOT NULL,
+        order_id INT,
+        used_at DATETIME NOT NULL DEFAULT NOW()
+      );
 
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      message TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        message TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT NOW()
+      );
+    `);
 
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('siteName', 'ShopUz');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('adminPassword', 'admin123');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('deliveryFee', '15000');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('freeDeliveryThreshold', '300000');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('supportPhone', '+998901234567');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('supportTelegram', '@shopuz');
-  `);
+    await conn.query(`
+      INSERT IGNORE INTO settings (\`key\`, value) VALUES
+        ('siteName', 'ShopUz'),
+        ('adminPassword', 'admin123'),
+        ('deliveryFee', '15000'),
+        ('freeDeliveryThreshold', '300000'),
+        ('supportPhone', '+998901234567'),
+        ('supportTelegram', '@shopuz');
+    `);
 
-  console.log("✅ Database ready:", dbPath);
+    console.log("✅ MySQL database ready");
+  } finally {
+    conn.release();
+  }
 }
 
 initDb().catch(err => {
-  console.error("❌ Database initialization error:", err);
+  console.error("❌ Database init error:", err.message);
   process.exit(1);
 });

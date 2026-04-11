@@ -1,141 +1,141 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { mysqlTable, varchar, text, int, double, tinyint, datetime } from "drizzle-orm/mysql-core";
 import { sql } from "drizzle-orm";
 
-export const categoriesTable = sqliteTable("categories", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
+export const categoriesTable = mysqlTable("categories", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 255 }).notNull(),
   imageUrl: text("image_url"),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const customersTable = sqliteTable("customers", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  phone: text("phone").notNull().unique(),
-  name: text("name"),
+export const customersTable = mysqlTable("customers", {
+  id: int("id").primaryKey().autoincrement(),
+  phone: varchar("phone", { length: 20 }).notNull().unique(),
+  name: varchar("name", { length: 255 }),
   avatarUrl: text("avatar_url"),
-  language: text("language").default("uz"),
-  telegramId: text("telegram_id"),
+  language: varchar("language", { length: 10 }).default("uz"),
+  telegramId: varchar("telegram_id", { length: 100 }),
   savedAddress: text("saved_address"),
-  lastNotificationReadAt: text("last_notification_read_at"),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  lastNotificationReadAt: datetime("last_notification_read_at"),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const couriersTable = sqliteTable("couriers", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  phone: text("phone").notNull(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  lat: real("lat"),
-  lng: real("lng"),
-  locationUpdatedAt: text("location_updated_at"),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+export const couriersTable = mysqlTable("couriers", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  username: varchar("username", { length: 100 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
+  isActive: tinyint("is_active").notNull().default(1),
+  lat: double("lat"),
+  lng: double("lng"),
+  locationUpdatedAt: datetime("location_updated_at"),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const productsTable = sqliteTable("products", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
+export const productsTable = mysqlTable("products", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  price: real("price").notNull(),
-  oldPrice: real("old_price"),
+  price: double("price").notNull(),
+  oldPrice: double("old_price"),
   images: text("images").notNull().default("[]"),
-  categoryId: integer("category_id").references(() => categoriesTable.id),
-  inStock: integer("in_stock", { mode: "boolean" }).notNull().default(true),
-  unit: text("unit").notNull().default("dona"),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  categoryId: int("category_id"),
+  inStock: tinyint("in_stock").notNull().default(1),
+  unit: varchar("unit", { length: 50 }).notNull().default("dona"),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const cartTable = sqliteTable("cart", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  customerId: integer("customer_id").notNull().references(() => customersTable.id),
-  productId: integer("product_id").notNull().references(() => productsTable.id),
-  quantity: integer("quantity").notNull().default(1),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+export const cartTable = mysqlTable("cart", {
+  id: int("id").primaryKey().autoincrement(),
+  customerId: int("customer_id").notNull(),
+  productId: int("product_id").notNull(),
+  quantity: int("quantity").notNull().default(1),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const likedTable = sqliteTable("liked", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  customerId: integer("customer_id").notNull().references(() => customersTable.id),
-  productId: integer("product_id").notNull().references(() => productsTable.id),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+export const likedTable = mysqlTable("liked", {
+  id: int("id").primaryKey().autoincrement(),
+  customerId: int("customer_id").notNull(),
+  productId: int("product_id").notNull(),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const ordersTable = sqliteTable("orders", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  customerId: integer("customer_id").notNull().references(() => customersTable.id),
-  courierId: integer("courier_id").references(() => couriersTable.id),
-  status: text("status").notNull().default("new"),
-  deliveryMethod: text("delivery_method").notNull(),
-  paymentMethod: text("payment_method").notNull(),
+export const ordersTable = mysqlTable("orders", {
+  id: int("id").primaryKey().autoincrement(),
+  customerId: int("customer_id").notNull(),
+  courierId: int("courier_id"),
+  status: varchar("status", { length: 50 }).notNull().default("new"),
+  deliveryMethod: varchar("delivery_method", { length: 50 }).notNull(),
+  paymentMethod: varchar("payment_method", { length: 50 }).notNull(),
   address: text("address"),
   note: text("note"),
-  promoCode: text("promo_code"),
-  discountAmount: real("discount_amount").notNull().default(0),
-  totalPrice: real("total_price").notNull(),
-  deliveryFee: real("delivery_fee").notNull().default(0),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  promoCode: varchar("promo_code", { length: 100 }),
+  discountAmount: double("discount_amount").notNull().default(0),
+  totalPrice: double("total_price").notNull(),
+  deliveryFee: double("delivery_fee").notNull().default(0),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const orderItemsTable = sqliteTable("order_items", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  orderId: integer("order_id").notNull().references(() => ordersTable.id),
-  productId: integer("product_id").notNull(),
-  productName: text("product_name").notNull(),
+export const orderItemsTable = mysqlTable("order_items", {
+  id: int("id").primaryKey().autoincrement(),
+  orderId: int("order_id").notNull(),
+  productId: int("product_id").notNull(),
+  productName: varchar("product_name", { length: 255 }).notNull(),
   productImage: text("product_image"),
-  quantity: integer("quantity").notNull(),
-  price: real("price").notNull(),
+  quantity: int("quantity").notNull(),
+  price: double("price").notNull(),
 });
 
-export const messagesTable = sqliteTable("messages", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  customerId: integer("customer_id").notNull().references(() => customersTable.id),
-  senderType: text("sender_type").notNull(),
+export const messagesTable = mysqlTable("messages", {
+  id: int("id").primaryKey().autoincrement(),
+  customerId: int("customer_id").notNull(),
+  senderType: varchar("sender_type", { length: 20 }).notNull(),
   text: text("text").notNull().default(""),
   mediaUrl: text("media_url"),
-  mediaType: text("media_type"),
-  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  mediaType: varchar("media_type", { length: 50 }),
+  isRead: tinyint("is_read").notNull().default(0),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const bannersTable = sqliteTable("banners", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const bannersTable = mysqlTable("banners", {
+  id: int("id").primaryKey().autoincrement(),
   imageUrl: text("image_url").notNull(),
-  title: text("title"),
+  title: varchar("title", { length: 255 }),
   link: text("link"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  isActive: tinyint("is_active").notNull().default(1),
+  sortOrder: int("sort_order").notNull().default(0),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const settingsTable = sqliteTable("settings", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  key: text("key").notNull().unique(),
+export const settingsTable = mysqlTable("settings", {
+  id: int("id").primaryKey().autoincrement(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
   value: text("value").notNull(),
-  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+  updatedAt: datetime("updated_at").notNull().default(sql`NOW()`),
 });
 
-export const promoCodesTable = sqliteTable("promo_codes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  code: text("code").notNull().unique(),
-  discountType: text("discount_type").notNull().default("fixed"),
-  discountAmount: real("discount_amount").notNull(),
-  maxUses: integer("max_uses"),
-  usedCount: integer("used_count").notNull().default(0),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+export const promoCodesTable = mysqlTable("promo_codes", {
+  id: int("id").primaryKey().autoincrement(),
+  code: varchar("code", { length: 100 }).notNull().unique(),
+  discountType: varchar("discount_type", { length: 20 }).notNull().default("fixed"),
+  discountAmount: double("discount_amount").notNull(),
+  maxUses: int("max_uses"),
+  usedCount: int("used_count").notNull().default(0),
+  isActive: tinyint("is_active").notNull().default(1),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });
 
-export const promoCodeUsagesTable = sqliteTable("promo_code_usages", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  promoCodeId: integer("promo_code_id").notNull().references(() => promoCodesTable.id),
-  customerId: integer("customer_id").notNull().references(() => customersTable.id),
-  orderId: integer("order_id"),
-  usedAt: text("used_at").notNull().default(sql`(datetime('now'))`),
+export const promoCodeUsagesTable = mysqlTable("promo_code_usages", {
+  id: int("id").primaryKey().autoincrement(),
+  promoCodeId: int("promo_code_id").notNull(),
+  customerId: int("customer_id").notNull(),
+  orderId: int("order_id"),
+  usedAt: datetime("used_at").notNull().default(sql`NOW()`),
 });
 
-export const notificationsTable = sqliteTable("notifications", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const notificationsTable = mysqlTable("notifications", {
+  id: int("id").primaryKey().autoincrement(),
   message: text("message").notNull(),
-  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  createdAt: datetime("created_at").notNull().default(sql`NOW()`),
 });

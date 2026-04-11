@@ -3,10 +3,10 @@ import { readdirSync, mkdirSync } from "fs";
 
 mkdirSync("dist", { recursive: true });
 
-// Keep all runtime packages external so server installs correct native binaries
+// Keep all runtime packages external
 const externalModules = [
   "node:*",
-  "@libsql/client",
+  "mysql2",
   "drizzle-orm",
   "express", "cors", "multer",
   "zod",

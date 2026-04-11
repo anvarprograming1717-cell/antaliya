@@ -60,7 +60,7 @@ router.patch("/courier/location", async (req, res): Promise<void> => {
   const courierId = (req as any).courierId;
   if (!courierId) { res.status(401).json({ error: "Not authenticated" }); return; }
   const { lat, lng } = req.body;
-  await db.update(couriersTable).set({ lat, lng, locationUpdatedAt: new Date().toISOString() }).where(eq(couriersTable.id, courierId));
+  await db.update(couriersTable).set({ lat, lng, locationUpdatedAt: new Date() }).where(eq(couriersTable.id, courierId));
   res.json({ success: true });
 });
 

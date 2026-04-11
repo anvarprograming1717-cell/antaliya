@@ -42,3 +42,9 @@ id = "cfacWV7n1EeDxuXiIqPRj"
 uri = "file://shopuz-v6.tar.gz"
 type = "unspecified"
 title = "ShopUz v6 — 315KB (muammo hal qilindi)"
+
+[[outputs]]
+id = "B_DAh-Zbb12lKCsgiQkFP"
+uri = "file://shopuz-mysql.tar.gz"
+type = "unspecified"
+title = "ShopUz MySQL — cPanel uchun eng to‘g‘ri versiya"
