@@ -54,3 +54,9 @@ id = "B6HH5Fjh6_-VK7WC7Oq7H"
 uri = "file://shopuz-final.tar.gz"
 type = "unspecified"
 title = "ShopUz FINAL — 4.3MB (node_modules ichida, npm install kerak emas)"
+
+[[outputs]]
+id = "UHnsuX7mV4xEcj-Ba7zM0"
+uri = "file://shopuz-clean.tar.gz"
+type = "unspecified"
+title = "shopuz-clean.tar.gz — Tozalangan arxiv"
