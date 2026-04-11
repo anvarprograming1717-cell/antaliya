@@ -24,3 +24,9 @@ id = "n6U5g---Y4UP7ucAsqgoY"
 uri = "file://shopuz-v3.tar.gz"
 type = "unspecified"
 title = "ShopUz v3 — To’liq ishlaydigan (test qilingan)"
+
+[[outputs]]
+id = "j4nLWtHfKvbSCcbFLCSfW"
+uri = "file://shopuz-v4.tar.gz"
+type = "unspecified"
+title = "ShopUz v4 — Passenger uchun to‘g‘ri sozlangan"
