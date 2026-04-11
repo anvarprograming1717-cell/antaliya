@@ -30,3 +30,9 @@ id = "j4nLWtHfKvbSCcbFLCSfW"
 uri = "file://shopuz-v4.tar.gz"
 type = "unspecified"
 title = "ShopUz v4 — Passenger uchun to‘g‘ri sozlangan"
+
+[[outputs]]
+id = "a8GNglSO4wXUNPb84V1U-"
+uri = "file://shopuz-v5.tar.gz"
+type = "unspecified"
+title = "ShopUz v5 — 401KB (node_modules siz, CloudLinux uchun to‘g‘ri)"
