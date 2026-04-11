@@ -3,9 +3,11 @@ import { readdirSync, mkdirSync } from "fs";
 
 mkdirSync("dist", { recursive: true });
 
-// Keep heavy/native modules external, bundle the rest (including @libsql/client)
+// Keep all runtime packages external so server installs correct native binaries
 const externalModules = [
   "node:*",
+  "@libsql/client",
+  "drizzle-orm",
   "express", "cors", "multer",
   "zod",
 ];

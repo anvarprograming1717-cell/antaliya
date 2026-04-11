@@ -36,3 +36,9 @@ id = "a8GNglSO4wXUNPb84V1U-"
 uri = "file://shopuz-v5.tar.gz"
 type = "unspecified"
 title = "ShopUz v5 — 401KB (node_modules siz, CloudLinux uchun to‘g‘ri)"
+
+[[outputs]]
+id = "cfacWV7n1EeDxuXiIqPRj"
+uri = "file://shopuz-v6.tar.gz"
+type = "unspecified"
+title = "ShopUz v6 — 315KB (muammo hal qilindi)"
