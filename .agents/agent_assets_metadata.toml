@@ -6,3 +6,9 @@ id = "6Sj0F3d2NSj5IxcBaDUOp"
 uri = "file://shopuz-cpanel-deploy.tar.gz"
 type = "unspecified"
 title = "ShopUz — cPanel Deployment Package"
+
+[[outputs]]
+id = "zhZc82-5ZHD5Ng3dDMnAj"
+uri = "file://shopuz-ready.tar.gz"
+type = "unspecified"
+title = "ShopUz — To'liq tayyor (node_modules bilan, npm kerak emas)"
