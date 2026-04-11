@@ -1,0 +1,62 @@
+[freshuz@de ~]$ https://de.ahost.cloud:2083/cpsess6024797445/frontend/jupiter/filemanager/index.html
+bash: https://de.ahost.cloud:2083/cpsess6024797445/frontend/jupiter/filemanager/index.html: No such file or directory
+[freshuz@de ~]$ cd ~/public_html/app
+[freshuz@de app]$ npm install
+bash: npm: command not found
+[freshuz@de app]$ source ~/nodevenv/public_html/app/20/bin/activate
+[public_html/app (20)] [freshuz@de app]$ npm install
+npm warn deprecated multer@1.4.5-lts.2: Multer 1.x is impacted by a number of vulnerabilities, which have been patched in 2.x. You should upgrade to the latest 2.x version.
+
+added 102 packages, and audited 103 packages in 17s
+
+21 packages are looking for funding
+  run `npm fund` for details
+
+1 high severity vulnerability
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+[public_html/app (20)] [freshuz@de app]$ ls -la ~/public_html/total 24drwxr-x---  5 freshuz nobody  4096 Apr 12 01:28 .
+drwx--x--x 20 freshuz freshuz 4096 Apr 12 01:23 ..
+drwxr-xr-x  6 freshuz freshuz 4096 Apr 12 01:27 app
+-rw-r--r--  1 freshuz freshuz  617 Apr 12 01:25 .htaccess
+drwxr-xr-x  2 freshuz freshuz 4096 Apr 12 01:28 uploads
+drwxr-xr-x  3 freshuz freshuz 4096 Apr 11 19:46 .well-known
+[public_html/app (20)] [freshuz@de app]$ cat ~/public_html/.htaccess 2>/dev/null || echo "htaccess yoq"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/freshuz/public_html/app"
+PassengerBaseURI "/"
+PassengerNodejs "/home/freshuz/nodevenv/public_html/app/20/bin/node"
+PassengerAppType node
+PassengerStartupFile dist/app.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+<IfModule Litespeed>
+SetEnv NODE_ENV production
+SetEnv DB_HOST localhost
+SetEnv DB_NAME freshuz_shopuz
+SetEnv DB_USER freshuz_shopuzuser
+SetEnv DB_PASSWORD anvar1717
+</IfModule>
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END[public_html/app (20)] [freshuz@de app]$ cd ~/public_html
+[public_html/app (20)] [freshuz@de public_html]$ cd ~/public_html
+[public_html/app (20)] [freshuz@de public_html]$ node -e "const fs=require('fs');let h=fs.readFileSync('.htaccess','utf8');h=h.replace('<IfModule Litespeed>\nSetEnv','SetEnv').replace('SetEnv DB_PASSWORD anvar1717\n</IfModule>','SetEnv DB_PASSWORD anvar1717');fs.writeFileSync('.htaccess',h);console.log('OK')"
+OK
+[public_html/app (20)] [freshuz@de public_html]$ mkdir -p ~/public_html/app/tmp && touch ~/public_html/app/tmp/restart.txt
+[public_html/app (20)] [freshuz@de public_html]$ cat ~/public_html/.htaccess
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/freshuz/public_html/app"
+PassengerBaseURI "/"
+PassengerNodejs "/home/freshuz/nodevenv/public_html/app/20/bin/node"
+PassengerAppType node
+PassengerStartupFile dist/app.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+SetEnv NODE_ENV production
+SetEnv DB_HOST localhost
+SetEnv DB_NAME freshuz_shopuz
+SetEnv DB_USER freshuz_shopuzuser
+SetEnv DB_PASSWORD anvar1717
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END[public_html/app (20)] [freshuz@de public_html]$
