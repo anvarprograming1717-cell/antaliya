@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Heart, ShoppingCart, ChevronLeft, ChevronRight, Check } from "lucide-react";
@@ -6,7 +6,6 @@ import { useGetProduct, getGetProductQueryKey, useAddToCart, useToggleLike, getG
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStickyBar } from "@/lib/stickyBar";
 
 export default function ProductDetail() {
   const params = useParams<{ id: string }>();
@@ -16,78 +15,10 @@ export default function ProductDetail() {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const queryClient = useQueryClient();
-  const { setBottomBar } = useStickyBar();
 
   const { data: product, isLoading } = useGetProduct(id, { query: { enabled: !!id, queryKey: getGetProductQueryKey(id) } });
   const addToCart = useAddToCart();
   const toggleLike = useToggleLike();
-
-  const handleAddToCart = () => {
-    if (!product) return;
-    addToCart.mutate(
-      { data: { productId: product.id, quantity: qty } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
-          setAdded(true);
-          setTimeout(() => setAdded(false), 2000);
-        },
-      }
-    );
-  };
-
-  // Sticky pastki panel — faqat shu sahifada ko'rinadi, chiqqanda tozalanadi
-  useEffect(() => {
-    if (!product) return;
-    setBottomBar(
-      <div className="glass rounded-3xl shadow-2xl flex items-center gap-3 px-4 py-3">
-        <div className="flex items-center gap-2 bg-background/60 rounded-2xl px-3 py-2 shrink-0">
-          <button
-            onClick={() => setQty(q => Math.max(1, q - 1))}
-            className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
-            data-testid="button-decrease-qty"
-          >
-            -
-          </button>
-          <span className="w-7 text-center font-bold text-base" data-testid="text-quantity">{qty}</span>
-          <button
-            onClick={() => setQty(q => q + 1)}
-            className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
-            data-testid="button-increase-qty"
-          >
-            +
-          </button>
-        </div>
-        <Button
-          onClick={handleAddToCart}
-          disabled={!product.inStock || addToCart.isPending}
-          className={`flex-1 h-12 rounded-2xl text-sm font-semibold transition-all ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
-          data-testid="button-add-to-cart"
-        >
-          {added ? (
-            <><Check className="w-4 h-4 mr-1.5" /> Qo'shildi!</>
-          ) : (
-            <><ShoppingCart className="w-4 h-4 mr-1.5" /> Savatchaga qo'shish</>
-          )}
-        </Button>
-      </div>
-    );
-    return () => setBottomBar(null);
-  }, [product, qty, added, addToCart.isPending]);
-
-  const handleLike = () => {
-    if (!product) return;
-    toggleLike.mutate(
-      { data: { productId: product.id } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetProductQueryKey(id) });
-          queryClient.invalidateQueries({ queryKey: getGetLikedQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-        },
-      }
-    );
-  };
 
   if (isLoading) {
     return (
@@ -103,8 +34,34 @@ export default function ProductDetail() {
 
   const images = product.images && product.images.length > 0 ? product.images : ["https://placehold.co/600"];
 
+  const handleAddToCart = () => {
+    addToCart.mutate(
+      { data: { productId: product.id, quantity: qty } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+          setAdded(true);
+          setTimeout(() => setAdded(false), 2000);
+        },
+      }
+    );
+  };
+
+  const handleLike = () => {
+    toggleLike.mutate(
+      { data: { productId: product.id } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetProductQueryKey(id) });
+          queryClient.invalidateQueries({ queryKey: getGetLikedQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+        },
+      }
+    );
+  };
+
   return (
-    <div className="min-h-screen pb-32">
+    <div className="min-h-screen pb-6">
       {/* Image Section */}
       <div className="relative bg-muted/30">
         <div className="aspect-square overflow-hidden">
@@ -196,6 +153,40 @@ export default function ProductDetail() {
             <p className="text-muted-foreground text-sm leading-relaxed">{product.description}</p>
           </div>
         )}
+
+        {/* Miqdor + Savatga qo'shish — sahifa ichida, scroll bilan birga */}
+        <div className="flex gap-3 items-center pt-2 pb-2">
+          <div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3 shrink-0">
+            <button
+              onClick={() => setQty(q => Math.max(1, q - 1))}
+              className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
+              data-testid="button-decrease-qty"
+            >
+              -
+            </button>
+            <span className="w-8 text-center font-bold text-base" data-testid="text-quantity">{qty}</span>
+            <button
+              onClick={() => setQty(q => q + 1)}
+              className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
+              data-testid="button-increase-qty"
+            >
+              +
+            </button>
+          </div>
+
+          <Button
+            onClick={handleAddToCart}
+            disabled={!product.inStock || addToCart.isPending}
+            className={`flex-1 h-14 rounded-2xl text-base font-semibold transition-all min-w-0 ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
+            data-testid="button-add-to-cart"
+          >
+            {added ? (
+              <><Check className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Qo'shildi!</span></>
+            ) : (
+              <><ShoppingCart className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Savatchaga qo'shish</span></>
+            )}
+          </Button>
+        </div>
       </motion.div>
     </div>
   );

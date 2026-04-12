@@ -126,3 +126,9 @@ id = "IIbhImx0Xy7o2j6cuNgNg"
 uri = "file://patch11.tar.gz"
 type = "unspecified"
 title = "patch11.tar.gz — Tugma faqat mahsulot sahifasida ko'rinadi"
+
+[[outputs]]
+id = "747huDNkCd-dHF6LX4wvU"
+uri = "file://patch12.tar.gz"
+type = "unspecified"
+title = "patch12.tar.gz — Tugma sahifa ichida (scroll bilan birga)"
