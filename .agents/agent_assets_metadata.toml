@@ -60,3 +60,9 @@ id = "UHnsuX7mV4xEcj-Ba7zM0"
 uri = "file://shopuz-clean.tar.gz"
 type = "unspecified"
 title = "shopuz-clean.tar.gz — Tozalangan arxiv"
+
+[[outputs]]
+id = "6M_oBm5bKNCli6UpXnfkD"
+uri = "file://patch.tar.gz"
+type = "unspecified"
+title = "patch.tar.gz — Faqat app.js (9.7KB)"
