@@ -61,7 +61,7 @@ export default function ProductDetail() {
   };
 
   return (
-    <div className="min-h-screen pb-6">
+    <div className="min-h-screen pb-28">
       {/* Image Section */}
       <div className="relative bg-muted/30">
         <div className="aspect-square overflow-hidden">
@@ -161,9 +161,13 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* Quantity + Add to Cart */}
-        <div className="flex gap-4 items-center pt-2">
-          <div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3">
+      </motion.div>
+
+      {/* Sticky bottom — miqdor + savatga qo'shish */}
+      <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-3">
+        <div className="glass rounded-3xl shadow-2xl flex items-center gap-3 px-4 py-3">
+          {/* Miqdor */}
+          <div className="flex items-center gap-2 bg-background/60 rounded-2xl px-3 py-2 shrink-0">
             <button
               onClick={() => setQty(q => Math.max(1, q - 1))}
               className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
@@ -171,7 +175,7 @@ export default function ProductDetail() {
             >
               -
             </button>
-            <span className="w-8 text-center font-bold text-base" data-testid="text-quantity">{qty}</span>
+            <span className="w-7 text-center font-bold text-base" data-testid="text-quantity">{qty}</span>
             <button
               onClick={() => setQty(q => q + 1)}
               className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
@@ -181,20 +185,21 @@ export default function ProductDetail() {
             </button>
           </div>
 
+          {/* Savatga qo'shish tugmasi */}
           <Button
             onClick={handleAddToCart}
             disabled={!product.inStock || addToCart.isPending}
-            className={`flex-1 h-14 rounded-2xl text-base font-semibold transition-all ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
+            className={`flex-1 h-12 rounded-2xl text-sm font-semibold transition-all ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
             data-testid="button-add-to-cart"
           >
             {added ? (
-              <><Check className="w-5 h-5 mr-2" /> Qo'shildi!</>
+              <><Check className="w-4 h-4 mr-1.5" /> Qo'shildi!</>
             ) : (
-              <><ShoppingCart className="w-5 h-5 mr-2" /> Savatchaga qo'shish</>
+              <><ShoppingCart className="w-4 h-4 mr-1.5" /> Savatchaga qo'shish</>
             )}
           </Button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

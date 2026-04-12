@@ -67,7 +67,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   new: "🆕 Buyurtmangiz qabul qilindi",
   confirmed: "✅ Buyurtmangiz tasdiqlandi",
   preparing: "👨‍🍳 Buyurtmangiz tayyorlanmoqda",
-  delivering: "🚴 Buyurtmangiz yetkazilmoqda",
+  delivering: "🚴 Buyurtmangiz yetkazilayapdi",
   delivered: "🎉 Buyurtmangiz yetkazildi!",
   cancelled: "❌ Buyurtmangiz bekor qilindi",
 };
@@ -88,13 +88,18 @@ async function processUpdate(update: any): Promise<void> {
   const chatId: number = chat.id;
 
   if (text === "/start" || text?.startsWith("/start ")) {
-    await sendMessage(chatId,
-      `🛍️ <b>ShopUz Bot</b>\n\n` +
-      `Salom! Sizning Telegram ID: <code>${chatId}</code>\n\n` +
-      `Buyurtmalaringiz haqida xabar olish uchun:\n` +
-      `/link <telefon_raqam>\n` +
-      `Misol: <code>/link +998901234567</code>`
-    );
+    await tg("sendMessage", {
+      chat_id: chatId,
+      parse_mode: "HTML",
+      text:
+        `Assalomu aleykum! Xush kelibsiz <b>Fresh 777</b> botga! 🛍️\n\n` +
+        `Buyurtma berish uchun quyidagi tugmani bosing 👇`,
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "🛒 Buyurtma berish", url: "https://fresh-777.uz" }
+        ]]
+      }
+    });
     return;
   }
 
