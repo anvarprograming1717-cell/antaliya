@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon } from "lucide-react";
+import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon, Send, Plus, Trash2 } from "lucide-react";
 import {
   useGetSupportContact, getGetSupportContactQueryKey, useUpdateSupportContact,
   useUpdateAdminPassword, useGetSiteSettings, getGetSiteSettingsQueryKey, useUpdateSiteSettings,
@@ -24,6 +24,14 @@ export default function Settings() {
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [siteSaved, setSiteSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [tgAdminIds, setTgAdminIds] = useState<number[]>([]);
+  const [newTgId, setNewTgId] = useState("");
+  const [tgSaved, setTgSaved] = useState(false);
+  const [tgLoading, setTgLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/telegram-admins").then(r => r.json()).then(d => setTgAdminIds(d.adminIds || [])).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (contact) {
@@ -86,6 +94,30 @@ export default function Settings() {
         },
       }
     );
+  };
+
+  const handleAddTgAdmin = () => {
+    const id = parseInt(newTgId.trim());
+    if (isNaN(id) || id <= 0) return;
+    if (tgAdminIds.includes(id)) { setNewTgId(""); return; }
+    setTgAdminIds(prev => [...prev, id]);
+    setNewTgId("");
+  };
+
+  const handleRemoveTgAdmin = (id: number) => setTgAdminIds(prev => prev.filter(a => a !== id));
+
+  const handleSaveTgAdmins = async () => {
+    setTgLoading(true);
+    try {
+      await fetch("/api/admin/telegram-admins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminIds: tgAdminIds }),
+      });
+      setTgSaved(true);
+      setTimeout(() => setTgSaved(false), 2000);
+    } catch {}
+    setTgLoading(false);
   };
 
   return (
@@ -233,6 +265,53 @@ export default function Settings() {
           data-testid="button-save-password"
         >
           {passwordSaved ? <><Check className="w-4 h-4 mr-2" /> O'zgartirildi!</> : "O'zgartirish"}
+        </Button>
+      </motion.div>
+
+      {/* Telegram Admin IDs */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Send className="w-5 h-5 text-primary" />
+          <h3 className="font-bold">Telegram adminlar</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">Yangi buyurtmalar haqida xabar oladigan Telegram ID lar. ID ni bilish uchun botga /start yuboring.</p>
+
+        {/* Existing IDs */}
+        <div className="space-y-2">
+          {tgAdminIds.map(id => (
+            <div key={id} className="flex items-center justify-between bg-muted/40 rounded-xl px-3 py-2">
+              <span className="font-mono text-sm">{id}</span>
+              <button onClick={() => handleRemoveTgAdmin(id)} className="text-destructive hover:text-destructive/80 p-1">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {tgAdminIds.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">Admin qo'shilmagan</p>
+          )}
+        </div>
+
+        {/* Add new ID */}
+        <div className="flex gap-2">
+          <Input
+            value={newTgId}
+            onChange={e => setNewTgId(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleAddTgAdmin()}
+            placeholder="Telegram ID (masalan: 214840221)"
+            className="rounded-xl font-mono"
+            type="number"
+          />
+          <Button onClick={handleAddTgAdmin} variant="outline" className="rounded-xl shrink-0">
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <Button
+          onClick={handleSaveTgAdmins}
+          disabled={tgLoading}
+          className={`w-full rounded-xl ${tgSaved ? "bg-green-600 hover:bg-green-600" : ""}`}
+        >
+          {tgSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}
         </Button>
       </motion.div>
     </div>

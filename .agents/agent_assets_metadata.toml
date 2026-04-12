@@ -132,3 +132,9 @@ id = "747huDNkCd-dHF6LX4wvU"
 uri = "file://patch12.tar.gz"
 type = "unspecified"
 title = "patch12.tar.gz — Tugma sahifa ichida (scroll bilan birga)"
+
+[[outputs]]
+id = "KwCRK5khxkJCzYDHSXl51"
+uri = "file://shopuz/patch13.tar.gz"
+type = "unspecified"
+title = "patch13.tar.gz — Bot + Admin Settings"

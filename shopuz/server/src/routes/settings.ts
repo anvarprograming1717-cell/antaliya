@@ -86,4 +86,17 @@ router.patch("/admin/delivery-settings", async (req, res): Promise<void> => {
   res.json({ deliveryFee: parseFloat(m.deliveryFee ?? "15000"), freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000") });
 });
 
+router.get("/admin/telegram-admins", async (_req, res): Promise<void> => {
+  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "telegram_admins")).limit(1);
+  const ids = setting?.value ? setting.value.split(",").map(Number).filter(Boolean) : [214840221, 7157868450];
+  res.json({ adminIds: ids });
+});
+
+router.patch("/admin/telegram-admins", async (req, res): Promise<void> => {
+  const { adminIds } = req.body;
+  if (!Array.isArray(adminIds)) { res.status(400).json({ error: "adminIds array required" }); return; }
+  await upsert("telegram_admins", adminIds.join(","));
+  res.json({ adminIds });
+});
+
 export default router;

@@ -2,15 +2,18 @@ import { db } from "../db.js";
 import { settingsTable, customersTable } from "../schema.js";
 import { eq } from "drizzle-orm";
 import type { Request, Response } from "express";
-import { appendFileSync } from "fs";
+import { appendFileSync, mkdirSync } from "fs";
 import path from "path";
+
+const LOG_DIR = path.join(process.env.HOME || "/home/fresh-uz", "public_html/app/tmp");
+const LOG_FILE = path.join(LOG_DIR, "tg.log");
 
 function tgLog(msg: string) {
   try {
-    const logPath = path.join(typeof __dirname !== "undefined" ? __dirname : ".", "../tmp/tg.log");
-    appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`);
+    mkdirSync(LOG_DIR, { recursive: true });
+    appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${msg}\n`);
   } catch {}
-  console.log(msg);
+  console.log("[TG]", msg);
 }
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8359379882:AAF3LbwKc-XKMZF7ibW3U42xD2tVp45y5yo";
@@ -24,15 +27,33 @@ async function tg(method: string, body: object): Promise<any> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    return r.json();
-  } catch {
+    const result = await r.json();
+    if (!result.ok) tgLog(`tg.${method} FAILED: ${JSON.stringify(result)}`);
+    return result;
+  } catch (e) {
+    tgLog(`tg.${method} ERROR: ${String(e)}`);
     return null;
   }
 }
 
 export async function sendMessage(chatId: number | string, text: string): Promise<any> {
+  tgLog(`sendMessage → ${chatId}`);
   const result = await tg("sendMessage", { chat_id: chatId, text, parse_mode: "HTML" });
-  tgLog(`sendMessage(${chatId}): ${JSON.stringify(result)}`);
+  tgLog(`sendMessage ← ${chatId}: ok=${result?.ok}`);
+  return result;
+}
+
+async function sendMessageWithButton(chatId: number | string, text: string, buttonText: string, buttonUrl: string): Promise<any> {
+  tgLog(`sendMessageWithButton → ${chatId}`);
+  const result = await tg("sendMessage", {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [[{ text: buttonText, url: buttonUrl }]]
+    }
+  });
+  tgLog(`sendMessageWithButton ← ${chatId}: ok=${result?.ok}`);
   return result;
 }
 
@@ -60,65 +81,87 @@ async function setAdminIds(ids: number[]): Promise<void> {
 
 export async function notifyAdmins(text: string): Promise<void> {
   const adminIds = await getAdminIds();
+  tgLog(`notifyAdmins → ids: ${adminIds.join(",")}`);
   await Promise.all(adminIds.map(id => sendMessage(id, text)));
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
   new: "🆕 Buyurtmangiz qabul qilindi",
-  confirmed: "✅ Buyurtmangiz tasdiqlandi",
   preparing: "👨‍🍳 Buyurtmangiz tayyorlanmoqda",
-  delivering: "🚴 Buyurtmangiz yetkazilayapdi",
   delivered: "🎉 Buyurtmangiz yetkazildi!",
   cancelled: "❌ Buyurtmangiz bekor qilindi",
 };
 
 export async function notifyCustomerOrderStatus(customerId: number, orderId: number, status: string): Promise<void> {
+  tgLog(`notifyCustomer: customerId=${customerId} orderId=${orderId} status=${status}`);
   try {
     const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
-    if (!customer?.telegramId) return;
+    tgLog(`notifyCustomer: telegramId=${customer?.telegramId ?? "null"}`);
+    if (!customer?.telegramId) {
+      tgLog(`notifyCustomer: skipping — no telegramId for customer ${customerId}`);
+      return;
+    }
     const msg = STATUS_MESSAGES[status];
-    if (!msg) return;
+    if (!msg) {
+      tgLog(`notifyCustomer: skipping — no message for status "${status}"`);
+      return;
+    }
     await sendMessage(customer.telegramId, `${msg}\n\n📦 Buyurtma #${orderId}`);
-  } catch {}
+  } catch (e) {
+    tgLog(`notifyCustomer ERROR: ${String(e)}`);
+  }
 }
 
 async function processUpdate(update: any): Promise<void> {
-  if (!update.message) return;
+  tgLog(`processUpdate: ${JSON.stringify(update).substring(0, 200)}`);
+
+  if (!update.message) {
+    tgLog("processUpdate: no message field, skipping");
+    return;
+  }
   const { chat, text, from } = update.message;
   const chatId: number = chat.id;
+  tgLog(`processUpdate: chatId=${chatId} text="${text}" fromId=${from?.id}`);
 
   if (text === "/start" || text?.startsWith("/start ")) {
-    await tg("sendMessage", {
-      chat_id: chatId,
-      parse_mode: "HTML",
-      text:
-        `Assalomu aleykum! Xush kelibsiz <b>Fresh 777</b> botga! 🛍️\n\n` +
-        `Buyurtma berish uchun quyidagi tugmani bosing 👇`,
-      reply_markup: {
-        inline_keyboard: [[
-          { text: "🛒 Buyurtma berish", url: "https://fresh-777.uz" }
-        ]]
-      }
-    });
+    tgLog("processUpdate: handling /start");
+    await sendMessageWithButton(
+      chatId,
+      `Assalomu aleykum! Xush kelibsiz <b>Fresh 777</b> botga! 🛍️\n\nBuyurtma berish uchun quyidagi tugmani bosing 👇`,
+      "🛒 Buyurtma berish",
+      "https://fresh-777.uz"
+    );
     return;
   }
 
   if (text?.startsWith("/link ")) {
     const phone = text.substring(6).trim();
+    tgLog(`processUpdate: /link phone="${phone}" chatId=${chatId}`);
     if (!phone) { await sendMessage(chatId, "❌ Format: /link +998901234567"); return; }
     try {
       const [customer] = await db.select().from(customersTable).where(eq(customersTable.phone, phone)).limit(1);
-      if (!customer) { await sendMessage(chatId, "❌ Bu telefon raqam topilmadi. Avval saytda ro'yxatdan o'ting."); return; }
+      if (!customer) {
+        tgLog(`processUpdate: /link — customer not found for phone ${phone}`);
+        await sendMessage(chatId, "❌ Bu telefon raqam topilmadi. Avval saytda ro'yxatdan o'ting.");
+        return;
+      }
       await db.update(customersTable).set({ telegramId: String(chatId) }).where(eq(customersTable.id, customer.id));
+      tgLog(`processUpdate: /link — linked customer ${customer.id} to chatId ${chatId}`);
       await sendMessage(chatId, `✅ Hisobingiz muvaffaqiyatli ulandi!\n\nEndi buyurtmalaringiz holati haqida xabar olasiz. 🎉`);
-    } catch {
+    } catch (e) {
+      tgLog(`processUpdate: /link ERROR: ${String(e)}`);
       await sendMessage(chatId, "❌ Xatolik yuz berdi. Qayta urinib ko'ring.");
     }
     return;
   }
 
   const adminIds = await getAdminIds();
-  if (!adminIds.includes(from.id)) return;
+  tgLog(`processUpdate: adminIds=${adminIds.join(",")} fromId=${from?.id} isAdmin=${adminIds.includes(from?.id)}`);
+
+  if (!adminIds.includes(from?.id)) {
+    tgLog(`processUpdate: non-admin message from ${from?.id}, ignoring`);
+    return;
+  }
 
   if (text === "/admins") {
     await sendMessage(chatId, `👥 <b>Adminlar ro'yxati:</b>\n${adminIds.map(id => `• <code>${id}</code>`).join("\n")}`);
@@ -147,16 +190,16 @@ async function processUpdate(update: any): Promise<void> {
       `📋 <b>Admin buyruqlari:</b>\n\n` +
       `/admins — adminlar ro'yxati\n` +
       `/addadmin &lt;id&gt; — admin qo'shish\n` +
-      `/removeadmin &lt;id&gt; — admin o'chirish`
+      `/removeadmin &lt;id&gt; — admin o'chirish\n\n` +
+      `👤 <b>Mijoz buyruqlari:</b>\n` +
+      `/link +998901234567 — hisobni ulash`
     );
     return;
   }
 }
 
-// Webhook handler — Express route dan chaqiriladi: POST /api/telegram/webhook
-// Avval update ni qayta ishlab, keyin 200 yuboramiz (Passenger async ni o'ldirmasligi uchun)
 export async function handleWebhook(req: Request, res: Response): Promise<void> {
-  tgLog(`Webhook received: ${JSON.stringify(req.body)}`);
+  tgLog(`Webhook received: ${JSON.stringify(req.body).substring(0, 300)}`);
   try {
     await processUpdate(req.body);
   } catch (e) {
@@ -165,7 +208,6 @@ export async function handleWebhook(req: Request, res: Response): Promise<void> 
   res.sendStatus(200);
 }
 
-// Server start bo'lganda Telegram ga webhook URL ni ro'yxatdan o'tkazish
 export async function registerWebhook(baseUrl: string): Promise<void> {
   const webhookUrl = `${baseUrl}/api/telegram/webhook`;
   try {
