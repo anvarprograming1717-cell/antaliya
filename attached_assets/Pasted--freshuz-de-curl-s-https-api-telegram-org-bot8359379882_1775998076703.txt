@@ -1,0 +1,83 @@
+[freshuz@de ~]$ curl -s "https://api.telegram.org/bot8359379882:AAF3LbwKc-XKMZF7ibW3U42xD2tVp45y5yo/getWebhookInfo"
+{"ok":true,"result":{"url":"https://fresh-777.uz/api/telegram/webhook","has_custom_certificate":false,"pending_update_count":0,"max_connections":40,"ip_address":"167.235.222.200","allowed_updates":["message"]}}[freshuz@de ~]$ curl -X POST https://fresh-777.uz/api/telegram/webhook \        curl -X POST https://fresh-777.uz/api/telegram/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"update_id":1,"message":{"message_id":1,"from":{"id":214840221,"is_bot":false,"first_name":"Test"},"chat":{"id":214840221,"type":"private"},"date":1234567890,"text":"/start"}}'
+OK[freshuz@de ~]curl -v -X POST https://fresh-777.uz/api/telegram/webhook \ \
+  -H "Content-Type: application/json" \
+  -d '{"update_id":999,"message":{"message_id":1,"from":{"id":214840221,"is_bot":false,"first_name":"Test"},"chat":{"id":214840221,"type":"private"},"date":1234567890,"text":"/start"}}'
+Note: Unnecessary use of -X or --request, POST is already inferred.
+*   Trying 167.235.222.200:443...
+* Connected to fresh-777.uz (167.235.222.200) port 443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+* TLSv1.0 (OUT), TLS header, Certificate Status (22):
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.2 (IN), TLS header, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS header, Finished (20):
+* TLSv1.3 (IN), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.2 (OUT), TLS header, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (OUT), TLS header, Unknown (23):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
+* ALPN, server accepted to use h2
+* Server certificate:
+*  subject: CN=fresh-777.uz
+*  start date: Apr 11 13:47:45 2026 GMT
+*  expire date: Jul 10 13:47:44 2026 GMT
+*  subjectAltName: host "fresh-777.uz" matched cert's "fresh-777.uz"
+*  issuer: C=US; O=Let's Encrypt; CN=R13
+*  SSL certificate verify ok.
+* Using HTTP2, server supports multi-use
+* Connection state changed (HTTP/2 confirmed)
+* Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+* TLSv1.2 (OUT), TLS header, Unknown (23):
+* TLSv1.2 (OUT), TLS header, Unknown (23):
+* TLSv1.2 (OUT), TLS header, Unknown (23):
+* Using Stream ID: 1 (easy handle 0x55c1c15ea0a0)
+* TLSv1.2 (OUT), TLS header, Unknown (23):
+> POST /api/telegram/webhook HTTP/2
+> Host: fresh-777.uz
+> user-agent: curl/7.76.1
+> accept: */*
+> content-type: application/json
+> content-length: 178
+>
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* old SSL session ID is stale, removing
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* Connection state changed (MAX_CONCURRENT_STREAMS == 128)!
+* TLSv1.2 (OUT), TLS header, Unknown (23):
+* TLSv1.2 (OUT), TLS header, Unknown (23):
+* We are completely uploaded and fine
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.2 (IN), TLS header, Unknown (23):
+* TLSv1.2 (IN), TLS header, Unknown (23):
+< HTTP/2 200
+< server: nginx
+< date: Sun, 12 Apr 2026 12:47:45 GMT
+< content-type: text/plain; charset=utf-8
+< content-length: 2
+< x-powered-by: Express, Phusion Passenger(R) 6.1.1
+< access-control-allow-origin: *
+< etag: W/"2-nOO9QiTIwXgNtWtBJezz8kv3SLc"
+< status: 200 OK
+< x-xss-protection: 1; mode=block
+< x-content-type-options: nosniff
+< x-server-powered-by: Engintron
+<
+* Connection #0 to host fresh-777.uz left intact
+OK[freshuz@de ~]$

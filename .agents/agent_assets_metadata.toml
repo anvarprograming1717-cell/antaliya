@@ -90,3 +90,9 @@ id = "peAjdi3yVanUnA0ypJ-ai"
 uri = "file://patch5.tar.gz"
 type = "unspecified"
 title = "patch5.tar.gz — Yangi bot token bilan"
+
+[[outputs]]
+id = "O39N2kIeNXak3dCaqS7UW"
+uri = "file://patch6.tar.gz"
+type = "unspecified"
+title = "patch6.tar.gz — Passenger fix (avval javob, keyin 200)"

@@ -139,11 +139,12 @@ async function processUpdate(update: any): Promise<void> {
 }
 
 // Webhook handler — Express route dan chaqiriladi: POST /api/telegram/webhook
+// Avval update ni qayta ishlab, keyin 200 yuboramiz (Passenger async ni o'ldirmasligi uchun)
 export async function handleWebhook(req: Request, res: Response): Promise<void> {
-  res.sendStatus(200);
   try {
     await processUpdate(req.body);
   } catch {}
+  res.sendStatus(200);
 }
 
 // Server start bo'lganda Telegram ga webhook URL ni ro'yxatdan o'tkazish
