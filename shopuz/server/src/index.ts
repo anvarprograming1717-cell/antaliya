@@ -16,7 +16,7 @@ import couriersRouter from "./routes/couriers.js";
 import promoCodesRouter from "./routes/promoCodes.js";
 import notificationsRouter from "./routes/notifications.js";
 import uploadRouter from "./routes/upload.js";
-import { handleWebhook, registerWebhook } from "./services/telegram.js";
+import { handleWebhook, registerWebhook, sendMessage } from "./services/telegram.js";
 
 // __dirname is available in CJS; for ESM builds use fileURLToPath
 const _dirname: string = typeof __dirname !== "undefined"
@@ -57,6 +57,12 @@ app.use("/api", uploadRouter);
 
 // Telegram webhook endpoint
 app.post("/api/telegram/webhook", handleWebhook);
+
+// Telegram debug — faqat test uchun
+app.get("/api/telegram/test/:chatId", async (req, res) => {
+  const result = await sendMessage(req.params.chatId, "✅ Test xabar — bot ishlayapti!");
+  res.json({ sent: result });
+});
 
 // Serve built frontend (production)
 // Check for public/ inside dist (bundled deployment) or client/dist (dev build)

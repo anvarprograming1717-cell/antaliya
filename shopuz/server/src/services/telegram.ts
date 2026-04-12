@@ -20,10 +20,10 @@ async function tg(method: string, body: object): Promise<any> {
   }
 }
 
-export async function sendMessage(chatId: number | string, text: string): Promise<void> {
-  try {
-    await tg("sendMessage", { chat_id: chatId, text, parse_mode: "HTML" });
-  } catch {}
+export async function sendMessage(chatId: number | string, text: string): Promise<any> {
+  const result = await tg("sendMessage", { chat_id: chatId, text, parse_mode: "HTML" });
+  console.log("🤖 sendMessage result:", JSON.stringify(result));
+  return result;
 }
 
 async function getAdminIds(): Promise<number[]> {
