@@ -156,3 +156,9 @@ id = "g_BqsrRrK0dgHl20u5UPx"
 uri = "file://shopuz/patch16.tar.gz"
 type = "unspecified"
 title = "patch16.tar.gz — Savatcha + Admin buyurtmalar tuzatildi"
+
+[[outputs]]
+id = "Yd-vPUjVGNsBwQTq_BUJD"
+uri = "file://shopuz/patch17.tar.gz"
+type = "unspecified"
+title = "patch17.tar.gz — Dashboard + Delete tuzatildi"

@@ -16,6 +16,7 @@ import couriersRouter from "./routes/couriers.js";
 import promoCodesRouter from "./routes/promoCodes.js";
 import notificationsRouter from "./routes/notifications.js";
 import uploadRouter from "./routes/upload.js";
+import statsRouter from "./routes/stats.js";
 import { handleWebhook, registerWebhook, sendMessage } from "./services/telegram.js";
 
 // __dirname is available in CJS; for ESM builds use fileURLToPath
@@ -54,6 +55,7 @@ app.use("/api", couriersRouter);
 app.use("/api", promoCodesRouter);
 app.use("/api", notificationsRouter);
 app.use("/api", uploadRouter);
+app.use("/api", statsRouter);
 
 // Telegram webhook endpoint
 app.post("/api/telegram/webhook", handleWebhook);

@@ -159,6 +159,7 @@ router.patch("/orders/:id/assign-courier", async (req, res): Promise<void> => {
   res.json(await enrichOrder(order));
 });
 
+// Mijoz o'z buyurtmasini o'chiradi
 router.delete("/orders/:id/delete", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   const customerId = (req as any).customerId;
@@ -166,6 +167,14 @@ router.delete("/orders/:id/delete", async (req, res): Promise<void> => {
     const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
     if (!order || order.customerId !== customerId) { res.status(403).json({ error: "Forbidden" }); return; }
   }
+  await db.delete(ordersTable).where(eq(ordersTable.id, id));
+  res.json({ success: true });
+});
+
+// Admin ixtiyoriy buyurtmani o'chiradi (customer tekshiruvisiz)
+router.delete("/admin/orders/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  await db.delete(orderItemsTable).where(eq(orderItemsTable.orderId, id));
   await db.delete(ordersTable).where(eq(ordersTable.id, id));
   res.json({ success: true });
 });

@@ -2,10 +2,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, MapPin, Map, Navigation2, UserCheck, UserX, Trash2, MessageSquare, Tag } from "lucide-react";
 import {
-  useUpdateOrderStatus, useAssignCourier, useDeleteOrder,
+  useUpdateOrderStatus, useAssignCourier,
   useListCouriers, getListCouriersQueryKey,
 } from "@workspace/api-client-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -173,7 +173,17 @@ export default function AdminOrders() {
   const { data: couriers = [] } = useListCouriers({ query: { queryKey: getListCouriersQueryKey() } });
   const updateStatus = useUpdateOrderStatus();
   const assignCourier = useAssignCourier();
-  const deleteOrder = useDeleteOrder();
+  const deleteOrder = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/orders/${id}`, { method: "DELETE" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      setDeleteId(null);
+      setExpandedId(null);
+    },
+  });
 
   const handleStatusChange = (id: number, status: string) => {
     updateStatus.mutate(
@@ -190,13 +200,7 @@ export default function AdminOrders() {
   };
 
   const handleDelete = (id: number) => {
-    deleteOrder.mutate({ id }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
-        setDeleteId(null);
-        setExpandedId(null);
-      }
-    });
+    deleteOrder.mutate(id);
   };
 
   return (
