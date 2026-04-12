@@ -144,3 +144,9 @@ id = "XD4KxLCBQJSkNHnPiaia-"
 uri = "file://shopuz/patch14.tar.gz"
 type = "unspecified"
 title = "patch14.tar.gz — Mijozlar + Chat tuzatish"
+
+[[outputs]]
+id = "-qb8Y0EqEvveKK0Evnsaw"
+uri = "file://shopuz/patch15.tar.gz"
+type = "unspecified"
+title = "patch15.tar.gz — Admin buyurtmalar ko'rinishi tuzatildi"
