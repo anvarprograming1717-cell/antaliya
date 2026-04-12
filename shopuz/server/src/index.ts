@@ -78,5 +78,5 @@ app.listen(PORT, () => {
   if (process.env.NODE_ENV === "production") {
     console.log(`   App: http://localhost:${PORT}`);
   }
-  startPolling();
+  startPolling().catch(console.error);
 });

@@ -154,9 +154,26 @@ async function poll(): Promise<void> {
   if (polling) setTimeout(poll, 1000);
 }
 
-export function startPolling(): void {
+export async function startPolling(): Promise<void> {
   if (!BOT_TOKEN || polling) return;
+
+  // Webhookni o'chirish — polling ishlashi uchun zarur
+  try {
+    const del = await tg("deleteWebhook", { drop_pending_updates: false });
+    console.log("🤖 Telegram webhook deleted:", JSON.stringify(del));
+  } catch (e) {
+    console.error("🤖 deleteWebhook error:", e);
+  }
+
+  // Bot info tekshirish
+  try {
+    const me = await tg("getMe", {});
+    console.log("🤖 Telegram bot info:", JSON.stringify(me));
+  } catch (e) {
+    console.error("🤖 getMe error:", e);
+  }
+
   polling = true;
-  console.log("🤖 Telegram bot started");
+  console.log("🤖 Telegram bot polling started");
   poll();
 }

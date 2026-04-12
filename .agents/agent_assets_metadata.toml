@@ -72,3 +72,9 @@ id = "ns7UFTo1akPuZKl52o0GL"
 uri = "file://patch2.tar.gz"
 type = "unspecified"
 title = "patch2.tar.gz — Telegram bot qo'shilgan versiya (12KB)"
+
+[[outputs]]
+id = "awaYGvIeT6oDmC_dECJ9o"
+uri = "file://patch3.tar.gz"
+type = "unspecified"
+title = "patch3.tar.gz — Bot fix (webhook o'chirish + loglash)"
