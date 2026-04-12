@@ -102,3 +102,9 @@ id = "1jJfakksqWwMvl06TWYZK"
 uri = "file://patch7.tar.gz"
 type = "unspecified"
 title = "patch7.tar.gz — Debug endpoint bilan"
+
+[[outputs]]
+id = "FZC_g4GAjhcdTIz_YTSW0"
+uri = "file://patch8.tar.gz"
+type = "unspecified"
+title = "patch8.tar.gz — Fayl log bilan (tg.log)"

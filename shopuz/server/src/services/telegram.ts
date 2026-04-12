@@ -2,6 +2,16 @@ import { db } from "../db.js";
 import { settingsTable, customersTable } from "../schema.js";
 import { eq } from "drizzle-orm";
 import type { Request, Response } from "express";
+import { appendFileSync } from "fs";
+import path from "path";
+
+function tgLog(msg: string) {
+  try {
+    const logPath = path.join(typeof __dirname !== "undefined" ? __dirname : ".", "../tmp/tg.log");
+    appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch {}
+  console.log(msg);
+}
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8359379882:AAF3LbwKc-XKMZF7ibW3U42xD2tVp45y5yo";
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -22,7 +32,7 @@ async function tg(method: string, body: object): Promise<any> {
 
 export async function sendMessage(chatId: number | string, text: string): Promise<any> {
   const result = await tg("sendMessage", { chat_id: chatId, text, parse_mode: "HTML" });
-  console.log("🤖 sendMessage result:", JSON.stringify(result));
+  tgLog(`sendMessage(${chatId}): ${JSON.stringify(result)}`);
   return result;
 }
 
@@ -141,9 +151,12 @@ async function processUpdate(update: any): Promise<void> {
 // Webhook handler — Express route dan chaqiriladi: POST /api/telegram/webhook
 // Avval update ni qayta ishlab, keyin 200 yuboramiz (Passenger async ni o'ldirmasligi uchun)
 export async function handleWebhook(req: Request, res: Response): Promise<void> {
+  tgLog(`Webhook received: ${JSON.stringify(req.body)}`);
   try {
     await processUpdate(req.body);
-  } catch {}
+  } catch (e) {
+    tgLog(`processUpdate error: ${String(e)}`);
+  }
   res.sendStatus(200);
 }
 
