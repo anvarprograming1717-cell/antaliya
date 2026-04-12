@@ -42,12 +42,8 @@ globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === "string" ? input : (input instanceof Request ? input.url : input.toString());
   if (url.startsWith("/api") || url.includes("/api/")) {
     const headers = new Headers((init?.headers as HeadersInit) || (input instanceof Request ? input.headers : {}));
-    // Admin tizimga kirgan bo'lsa, customer headerini yubormaymiZ
-    const isAdmin = localStorage.getItem("isAdmin") === "true";
-    if (!isAdmin) {
-      const customerId = localStorage.getItem("customerId");
-      if (customerId) headers.set("x-customer-id", customerId);
-    }
+    const customerId = localStorage.getItem("customerId");
+    if (customerId) headers.set("x-customer-id", customerId);
     const courierId = localStorage.getItem("courierId");
     if (courierId) headers.set("x-courier-id", courierId);
     init = { ...init, headers };

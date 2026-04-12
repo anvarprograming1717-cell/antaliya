@@ -26,6 +26,7 @@ async function enrichOrder(order: any) {
   };
 }
 
+// Mijoz o'z buyurtmalarini ko'radi
 router.get("/orders", async (req, res): Promise<void> => {
   const customerId = (req as any).customerId;
   const conditions: any[] = [];
@@ -38,6 +39,15 @@ router.get("/orders", async (req, res): Promise<void> => {
   const orders = await db.select().from(ordersTable).where(conditions.length ? and(...conditions) : undefined);
   const enriched = await Promise.all(orders.map(enrichOrder));
   res.json(enriched);
+});
+
+// Admin barcha buyurtmalarni ko'radi (customer filteri yo'q)
+router.get("/admin/orders", async (req, res): Promise<void> => {
+  const conditions: any[] = [];
+  if (req.query.status) conditions.push(eq(ordersTable.status, req.query.status as string));
+  const orders = await db.select().from(ordersTable).where(conditions.length ? and(...conditions) : undefined);
+  const enriched = await Promise.all(orders.map(enrichOrder));
+  res.json(enriched.reverse());
 });
 
 router.post("/orders", async (req, res): Promise<void> => {

@@ -150,3 +150,9 @@ id = "-qb8Y0EqEvveKK0Evnsaw"
 uri = "file://shopuz/patch15.tar.gz"
 type = "unspecified"
 title = "patch15.tar.gz — Admin buyurtmalar ko'rinishi tuzatildi"
+
+[[outputs]]
+id = "g_BqsrRrK0dgHl20u5UPx"
+uri = "file://shopuz/patch16.tar.gz"
+type = "unspecified"
+title = "patch16.tar.gz — Savatcha + Admin buyurtmalar tuzatildi"
