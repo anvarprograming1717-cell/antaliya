@@ -120,3 +120,9 @@ id = "luwMoBV2lMaVfUKPORsJn"
 uri = "file://patch10.tar.gz"
 type = "unspecified"
 title = "patch10.tar.gz — Tugma endi qo'zg'almas (Portal fix)"
+
+[[outputs]]
+id = "IIbhImx0Xy7o2j6cuNgNg"
+uri = "file://patch11.tar.gz"
+type = "unspecified"
+title = "patch11.tar.gz — Tugma faqat mahsulot sahifasida ko'rinadi"

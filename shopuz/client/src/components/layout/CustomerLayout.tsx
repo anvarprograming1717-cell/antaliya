@@ -3,11 +3,13 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { Home, ShoppingCart, Heart, User, Clock } from "lucide-react";
 import { useGetCart, getGetCartQueryKey, useGetSiteSettings, getGetSiteSettingsQueryKey } from "@workspace/api-client-react";
+import { StickyBarProvider, useStickyBar } from "@/lib/stickyBar";
 
-export function CustomerLayout({ children }: { children: React.ReactNode }) {
+function LayoutInner({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { data: cartItems } = useGetCart({ query: { queryKey: getGetCartQueryKey() } });
   const { data: siteSettings } = useGetSiteSettings({ query: { queryKey: getGetSiteSettingsQueryKey() } });
+  const { bottomBar } = useStickyBar();
 
   const cartCount = cartItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
 
@@ -40,6 +42,13 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
           </motion.div>
         </AnimatePresence>
 
+        {/* Sticky bottom bar — sahifadan kelgan kontent (masalan ProductDetail) */}
+        {bottomBar && (
+          <div className="absolute left-0 right-0 z-40 px-4 pb-2" style={{ bottom: "76px" }}>
+            {bottomBar}
+          </div>
+        )}
+
         {/* iOS 26-style Floating Pill Tab Bar */}
         <div className="absolute bottom-0 left-0 right-0 z-50 flex justify-center pb-4 px-4">
           <LayoutGroup>
@@ -55,7 +64,6 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
                 boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
               }}
             >
-              {/* dark mode overlay */}
               <div
                 className="absolute inset-0 rounded-[28px] dark:bg-black/40 pointer-events-none"
                 style={{ backdropFilter: "blur(0px)" }}
@@ -71,7 +79,6 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
                     data-testid={`nav-${item.label.toLowerCase()}`}
                     className="relative z-10 flex flex-col items-center justify-center gap-0.5 rounded-[20px] px-3 py-2 min-w-[56px] transition-colors"
                   >
-                    {/* Active background bubble */}
                     {isActive && (
                       <motion.div
                         layoutId="active-pill"
@@ -84,7 +91,6 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
                       />
                     )}
 
-                    {/* Icon */}
                     <motion.div
                       className="relative"
                       animate={isActive ? { scale: 1.08 } : { scale: 1 }}
@@ -96,7 +102,6 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
                         }`}
                         strokeWidth={isActive ? 2.3 : 1.9}
                       />
-                      {/* Cart badge */}
                       {item.badge ? (
                         <motion.span
                           initial={{ scale: 0 }}
@@ -108,7 +113,6 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
                       ) : null}
                     </motion.div>
 
-                    {/* Label */}
                     <motion.span
                       animate={isActive ? { opacity: 1 } : { opacity: 0.55 }}
                       transition={{ duration: 0.2 }}
@@ -126,5 +130,13 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export function CustomerLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <StickyBarProvider>
+      <LayoutInner>{children}</LayoutInner>
+    </StickyBarProvider>
   );
 }
