@@ -16,7 +16,7 @@ import couriersRouter from "./routes/couriers.js";
 import promoCodesRouter from "./routes/promoCodes.js";
 import notificationsRouter from "./routes/notifications.js";
 import uploadRouter from "./routes/upload.js";
-import { startPolling } from "./services/telegram.js";
+import { handleWebhook, registerWebhook } from "./services/telegram.js";
 
 // __dirname is available in CJS; for ESM builds use fileURLToPath
 const _dirname: string = typeof __dirname !== "undefined"
@@ -55,6 +55,9 @@ app.use("/api", promoCodesRouter);
 app.use("/api", notificationsRouter);
 app.use("/api", uploadRouter);
 
+// Telegram webhook endpoint
+app.post("/api/telegram/webhook", handleWebhook);
+
 // Serve built frontend (production)
 // Check for public/ inside dist (bundled deployment) or client/dist (dev build)
 const publicDir = path.join(_dirname, "public");
@@ -78,5 +81,6 @@ app.listen(PORT, () => {
   if (process.env.NODE_ENV === "production") {
     console.log(`   App: http://localhost:${PORT}`);
   }
-  startPolling().catch(console.error);
+  const appUrl = process.env.APP_URL || "https://fresh-777.uz";
+  registerWebhook(appUrl).catch(console.error);
 });

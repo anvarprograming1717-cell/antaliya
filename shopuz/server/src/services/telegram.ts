@@ -1,6 +1,7 @@
 import { db } from "../db.js";
 import { settingsTable, customersTable } from "../schema.js";
 import { eq } from "drizzle-orm";
+import type { Request, Response } from "express";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8359379882:AAGKJztoz5r0llpr6mBv7Z5z2BFQtN3isHM";
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -71,9 +72,6 @@ export async function notifyCustomerOrderStatus(customerId: number, orderId: num
   } catch {}
 }
 
-let lastUpdateId = 0;
-let polling = false;
-
 async function processUpdate(update: any): Promise<void> {
   if (!update.message) return;
   const { chat, text, from } = update.message;
@@ -140,40 +138,25 @@ async function processUpdate(update: any): Promise<void> {
   }
 }
 
-async function poll(): Promise<void> {
-  if (!polling) return;
+// Webhook handler — Express route dan chaqiriladi: POST /api/telegram/webhook
+export async function handleWebhook(req: Request, res: Response): Promise<void> {
+  res.sendStatus(200);
   try {
-    const result: any = await tg("getUpdates", { offset: lastUpdateId + 1, timeout: 25, allowed_updates: ["message"] });
-    if (result?.ok && result.result?.length > 0) {
-      for (const update of result.result) {
-        lastUpdateId = update.update_id;
-        processUpdate(update).catch(() => {});
-      }
-    }
+    await processUpdate(req.body);
   } catch {}
-  if (polling) setTimeout(poll, 1000);
 }
 
-export async function startPolling(): Promise<void> {
-  if (!BOT_TOKEN || polling) return;
-
-  // Webhookni o'chirish — polling ishlashi uchun zarur
+// Server start bo'lganda Telegram ga webhook URL ni ro'yxatdan o'tkazish
+export async function registerWebhook(baseUrl: string): Promise<void> {
+  const webhookUrl = `${baseUrl}/api/telegram/webhook`;
   try {
-    const del = await tg("deleteWebhook", { drop_pending_updates: false });
-    console.log("🤖 Telegram webhook deleted:", JSON.stringify(del));
+    const result = await tg("setWebhook", {
+      url: webhookUrl,
+      allowed_updates: ["message"],
+      drop_pending_updates: false,
+    });
+    console.log("🤖 Telegram webhook registered:", webhookUrl, JSON.stringify(result));
   } catch (e) {
-    console.error("🤖 deleteWebhook error:", e);
+    console.error("🤖 Telegram webhook error:", e);
   }
-
-  // Bot info tekshirish
-  try {
-    const me = await tg("getMe", {});
-    console.log("🤖 Telegram bot info:", JSON.stringify(me));
-  } catch (e) {
-    console.error("🤖 getMe error:", e);
-  }
-
-  polling = true;
-  console.log("🤖 Telegram bot polling started");
-  poll();
 }

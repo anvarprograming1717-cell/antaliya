@@ -78,3 +78,9 @@ id = "awaYGvIeT6oDmC_dECJ9o"
 uri = "file://patch3.tar.gz"
 type = "unspecified"
 title = "patch3.tar.gz — Bot fix (webhook o'chirish + loglash)"
+
+[[outputs]]
+id = "qElH5troGFHW38_HKjtBe"
+uri = "file://patch4.tar.gz"
+type = "unspecified"
+title = "patch4.tar.gz — Webhook usuli (cPanel uchun to'g'ri)"
