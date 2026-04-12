@@ -1,0 +1,32 @@
+[freshuz@de ~]$ Application log
+bash: Application: command not found
+[freshuz@de ~]$ tail -f ~/logs/freshuz.error.log
+tail: cannot open '/home/freshuz/logs/freshuz.error.log' for reading: No such file or directory
+tail: no files remaining
+[freshuz@de ~]$ tail -f ~/logs/passenger.log
+tail: cannot open '/home/freshuz/logs/passenger.log' for reading: No such file or directory
+tail: no files remaining
+[freshuz@de ~]$ find ~/logs -name "*.log" 2>/dev/null
+[freshuz@de ~]$ ls ~/public_html/app/logs/ 2>/dev/null || ls ~/public_html/app/
+dist  node_modules  package.json  public  tmp  uploads
+[freshuz@de ~]$ ls ~/.cpanel/logs/ 2>/dev/null
+[freshuz@de ~]$ find /var/log -name "*passenger*" 2>/dev/null
+find ~ -name "*.log" 2>/dev/null | head -20
+/home/freshuz/.npm/_logs/2026-04-11T17_34_52_568Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T17_34_51_616Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T17_34_53_509Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T17_34_55_405Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T17_34_49_729Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T19_40_51_195Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-12T08_52_32_242Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T17_34_09_019Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T20_27_34_386Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T17_34_50_674Z-debug-0.log
+/home/freshuz/.npm/_logs/2026-04-11T17_34_54_458Z-debug-0.log
+[freshuz@de ~]$ cat ~/public_html/app/tmp/restart.txt 2>/dev/null
+ls ~/public_html/app/tmp/
+restart.txt
+[freshuz@de ~]$ curl -s "https://api.telegram.org/bot8359379882:AAGKJztoz5r0llpr6mBv7Z5z2BFQtN3isHM/getMe"
+{"ok":true,"result":{"id":8359379882,"is_bot":true,"first_name":"Fresh777","username":"fesh777_bot","can_join_groups":true,"can_read_all_group_messages":false,"supports_inline_queries":false,"can_connect_to_business":false,"has_main_web_app":true,"has_topics_enabled":false,"allows_users_to_create_topics":false,"can_manage_bots":false}}[freshuz@de ~]$ curl -s "https://api.telegram.org/bot8359379882:AAGKJztoz5r0llpr6mBv7Z5z2Bcurl -s "https://api.telegram.org/bot8359379882:AAGKJztoz5r0llpr6mBv7Z5z2BFQtN3isHM/getWebhookInfo"
+{"ok":true,"result":{"url":"","has_custom_certificate":false,"pending_update_count":2,"allowed_updates":["message"]}}[freshuz@de ~]$ curl -s "https://apicurl -s "https://api.telegram.org/bot8359379882:AAGKJztoz5r0llpr6mBv7Z5z2BFQtN3isHM/getWebhookInfo"
+{"ok":true,"result":{"url":"","has_custom_certificate":false,"pending_update_count":0,"allowed_updates":["message"]}}[freshuz@de ~]$
