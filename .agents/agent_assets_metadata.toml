@@ -114,3 +114,9 @@ id = "5eooQZ8cWi6fiErw_AkLD"
 uri = "file://patch9.tar.gz"
 type = "unspecified"
 title = "patch9.tar.gz — Button fix + Bot yangi xabarlar (317KB)"
+
+[[outputs]]
+id = "luwMoBV2lMaVfUKPORsJn"
+uri = "file://patch10.tar.gz"
+type = "unspecified"
+title = "patch10.tar.gz — Tugma endi qo'zg'almas (Portal fix)"
