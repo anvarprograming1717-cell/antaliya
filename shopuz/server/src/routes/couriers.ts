@@ -18,7 +18,8 @@ router.get("/couriers", async (_req, res): Promise<void> => {
 router.post("/couriers", async (req, res): Promise<void> => {
   const { name, phone, username, password, isActive } = req.body;
   if (!name || !phone || !username || !password) { res.status(400).json({ error: "All fields required" }); return; }
-  const [c] = await db.insert(couriersTable).values({ name, phone, username, password, isActive: isActive !== false }).returning();
+  const result = await db.insert(couriersTable).values({ name, phone, username, password, isActive: isActive !== false });
+  const [c] = await db.select().from(couriersTable).where(eq(couriersTable.id, result[0].insertId)).limit(1);
   res.status(201).json(safe(c));
 });
 
@@ -31,7 +32,8 @@ router.patch("/couriers/:id", async (req, res): Promise<void> => {
   if (username !== undefined) updates.username = username;
   if (password !== undefined) updates.password = password;
   if (isActive !== undefined) updates.isActive = isActive;
-  const [c] = await db.update(couriersTable).set(updates).where(eq(couriersTable.id, id)).returning();
+  await db.update(couriersTable).set(updates).where(eq(couriersTable.id, id));
+  const [c] = await db.select().from(couriersTable).where(eq(couriersTable.id, id)).limit(1);
   if (!c) { res.status(404).json({ error: "Not found" }); return; }
   res.json(safe(c));
 });

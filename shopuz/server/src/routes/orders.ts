@@ -77,7 +77,7 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const totalPrice = Math.max(0, subtotal + deliveryFee - discountAmount);
 
-  const [order] = await db.insert(ordersTable).values({
+  const result = await db.insert(ordersTable).values({
     customerId,
     status: "new",
     deliveryMethod,
@@ -88,9 +88,9 @@ router.post("/orders", async (req, res): Promise<void> => {
     discountAmount,
     totalPrice,
     deliveryFee,
-  }).returning();
+  });
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, result[0].insertId)).limit(1);
 
-  // Save order items
   await db.insert(orderItemsTable).values(cartItems.map(item => ({
     orderId: order.id,
     productId: item.productId,
@@ -102,16 +102,13 @@ router.post("/orders", async (req, res): Promise<void> => {
     price: item.product.price as number,
   })));
 
-  // Record promo usage
   if (appliedPromoCode) {
     const [promo] = await db.select().from(promoCodesTable).where(eq(promoCodesTable.code, appliedPromoCode)).limit(1);
     if (promo) await db.insert(promoCodeUsagesTable).values({ promoCodeId: promo.id, customerId, orderId: order.id });
   }
 
-  // Clear cart
   await db.delete(cartTable).where(eq(cartTable.customerId, customerId));
 
-  // Save address
   if (address) await db.update(customersTable).set({ savedAddress: address }).where(eq(customersTable.id, customerId));
 
   const enriched = await enrichOrder(order);
@@ -121,7 +118,8 @@ router.post("/orders", async (req, res): Promise<void> => {
 router.patch("/orders/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   const { status } = req.body;
-  const [order] = await db.update(ordersTable).set({ status }).where(eq(ordersTable.id, id)).returning();
+  await db.update(ordersTable).set({ status }).where(eq(ordersTable.id, id));
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
   if (!order) { res.status(404).json({ error: "Not found" }); return; }
   res.json(await enrichOrder(order));
 });
@@ -129,7 +127,8 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
 router.patch("/orders/:id/assign-courier", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   const { courierId } = req.body;
-  const [order] = await db.update(ordersTable).set({ courierId: courierId ?? null }).where(eq(ordersTable.id, id)).returning();
+  await db.update(ordersTable).set({ courierId: courierId ?? null }).where(eq(ordersTable.id, id));
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
   if (!order) { res.status(404).json({ error: "Not found" }); return; }
   res.json(await enrichOrder(order));
 });

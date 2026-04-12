@@ -62,7 +62,7 @@ router.get("/products", async (req, res): Promise<void> => {
 router.post("/products", async (req, res): Promise<void> => {
   const { name, description, price, oldPrice, images, categoryId, inStock, unit } = req.body;
   if (!name || price === undefined) { res.status(400).json({ error: "name and price required" }); return; }
-  const [product] = await db.insert(productsTable).values({
+  const result = await db.insert(productsTable).values({
     name,
     description: description ?? null,
     price,
@@ -71,7 +71,8 @@ router.post("/products", async (req, res): Promise<void> => {
     categoryId: categoryId ?? null,
     inStock: inStock !== false,
     unit: unit ?? "dona",
-  }).returning();
+  });
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, result[0].insertId)).limit(1);
   res.status(201).json({ ...product, images: JSON.parse(product.images as string), isLiked: false });
 });
 
@@ -117,7 +118,8 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   if (categoryId !== undefined) updates.categoryId = categoryId;
   if (inStock !== undefined) updates.inStock = inStock;
   if (unit !== undefined) updates.unit = unit;
-  const [product] = await db.update(productsTable).set(updates).where(eq(productsTable.id, id)).returning();
+  await db.update(productsTable).set(updates).where(eq(productsTable.id, id));
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id)).limit(1);
   if (!product) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...product, images: typeof product.images === "string" ? JSON.parse(product.images) : product.images });
 });

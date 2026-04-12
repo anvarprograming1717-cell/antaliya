@@ -13,7 +13,8 @@ router.get("/notifications", async (_req, res): Promise<void> => {
 router.post("/notifications/send", async (req, res): Promise<void> => {
   const { message } = req.body;
   if (!message) { res.status(400).json({ error: "message required" }); return; }
-  const [n] = await db.insert(notificationsTable).values({ message }).returning();
+  const result = await db.insert(notificationsTable).values({ message });
+  const [n] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, result[0].insertId)).limit(1);
   res.status(201).json(n);
 });
 

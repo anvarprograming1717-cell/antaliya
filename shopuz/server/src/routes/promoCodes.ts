@@ -13,13 +13,14 @@ router.get("/promo-codes", async (_req, res): Promise<void> => {
 router.post("/promo-codes", async (req, res): Promise<void> => {
   const { code, discountType, discountAmount, maxUses, isActive } = req.body;
   if (!code || discountAmount === undefined) { res.status(400).json({ error: "code and discountAmount required" }); return; }
-  const [pc] = await db.insert(promoCodesTable).values({
+  const result = await db.insert(promoCodesTable).values({
     code: code.toUpperCase(),
     discountType: discountType ?? "fixed",
     discountAmount,
     maxUses: maxUses ?? null,
     isActive: isActive !== false,
-  }).returning();
+  });
+  const [pc] = await db.select().from(promoCodesTable).where(eq(promoCodesTable.id, result[0].insertId)).limit(1);
   res.status(201).json(pc);
 });
 
@@ -32,7 +33,8 @@ router.patch("/promo-codes/:id", async (req, res): Promise<void> => {
   if (discountAmount !== undefined) updates.discountAmount = discountAmount;
   if (maxUses !== undefined) updates.maxUses = maxUses;
   if (isActive !== undefined) updates.isActive = isActive;
-  const [pc] = await db.update(promoCodesTable).set(updates).where(eq(promoCodesTable.id, id)).returning();
+  await db.update(promoCodesTable).set(updates).where(eq(promoCodesTable.id, id));
+  const [pc] = await db.select().from(promoCodesTable).where(eq(promoCodesTable.id, id)).limit(1);
   if (!pc) { res.status(404).json({ error: "Not found" }); return; }
   res.json(pc);
 });

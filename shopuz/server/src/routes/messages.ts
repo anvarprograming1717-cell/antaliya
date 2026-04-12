@@ -9,7 +9,6 @@ router.get("/messages", async (req, res): Promise<void> => {
   const customerId = (req as any).customerId;
   if (!customerId) { res.status(401).json({ error: "Not authenticated" }); return; }
   const msgs = await db.select().from(messagesTable).where(eq(messagesTable.customerId, customerId));
-  // Mark customer messages as read
   await db.update(messagesTable).set({ isRead: true }).where(and(eq(messagesTable.customerId, customerId), eq(messagesTable.senderType, "admin")));
   res.json(msgs);
 });
@@ -18,11 +17,11 @@ router.post("/messages", async (req, res): Promise<void> => {
   const customerId = (req as any).customerId;
   if (!customerId) { res.status(401).json({ error: "Not authenticated" }); return; }
   const { text, mediaUrl, mediaType } = req.body;
-  const [msg] = await db.insert(messagesTable).values({ customerId, senderType: "customer", text: text ?? "", mediaUrl: mediaUrl ?? null, mediaType: mediaType ?? null }).returning();
+  const result = await db.insert(messagesTable).values({ customerId, senderType: "customer", text: text ?? "", mediaUrl: mediaUrl ?? null, mediaType: mediaType ?? null });
+  const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, result[0].insertId)).limit(1);
   res.status(201).json(msg);
 });
 
-// Admin: get all conversations
 router.get("/admin/messages", async (_req, res): Promise<void> => {
   const customers = await db.select().from(customersTable);
   const result = await Promise.all(customers.map(async (c) => {
@@ -37,8 +36,8 @@ router.get("/admin/messages", async (_req, res): Promise<void> => {
 router.post("/admin/messages/:customerId", async (req, res): Promise<void> => {
   const customerId = parseInt(req.params.customerId);
   const { text, mediaUrl, mediaType } = req.body;
-  const [msg] = await db.insert(messagesTable).values({ customerId, senderType: "admin", text: text ?? "", mediaUrl: mediaUrl ?? null, mediaType: mediaType ?? null }).returning();
-  // Mark customer messages as read
+  const result = await db.insert(messagesTable).values({ customerId, senderType: "admin", text: text ?? "", mediaUrl: mediaUrl ?? null, mediaType: mediaType ?? null });
+  const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, result[0].insertId)).limit(1);
   await db.update(messagesTable).set({ isRead: true }).where(and(eq(messagesTable.customerId, customerId), eq(messagesTable.senderType, "customer")));
   res.status(201).json(msg);
 });

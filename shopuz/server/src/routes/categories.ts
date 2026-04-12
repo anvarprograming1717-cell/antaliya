@@ -13,7 +13,8 @@ router.get("/categories", async (_req, res): Promise<void> => {
 router.post("/categories", async (req, res): Promise<void> => {
   const { name, imageUrl } = req.body;
   if (!name) { res.status(400).json({ error: "name required" }); return; }
-  const [cat] = await db.insert(categoriesTable).values({ name, imageUrl: imageUrl ?? null }).returning();
+  const result = await db.insert(categoriesTable).values({ name, imageUrl: imageUrl ?? null });
+  const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, result[0].insertId)).limit(1);
   res.status(201).json(cat);
 });
 
@@ -23,7 +24,8 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
   const updates: any = {};
   if (name !== undefined) updates.name = name;
   if (imageUrl !== undefined) updates.imageUrl = imageUrl;
-  const [cat] = await db.update(categoriesTable).set(updates).where(eq(categoriesTable.id, id)).returning();
+  await db.update(categoriesTable).set(updates).where(eq(categoriesTable.id, id));
+  const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id)).limit(1);
   if (!cat) { res.status(404).json({ error: "Not found" }); return; }
   res.json(cat);
 });

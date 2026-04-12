@@ -32,10 +32,12 @@ router.post("/customers/login", async (req, res): Promise<void> => {
   const existing = await db.select().from(customersTable).where(eq(customersTable.phone, phone)).limit(1);
   let customer = existing[0];
   if (!customer) {
-    const [created] = await db.insert(customersTable).values({ phone, name: name ?? null }).returning();
+    const result = await db.insert(customersTable).values({ phone, name: name ?? null });
+    const [created] = await db.select().from(customersTable).where(eq(customersTable.id, result[0].insertId)).limit(1);
     customer = created;
   } else if (name && !customer.name) {
-    const [updated] = await db.update(customersTable).set({ name }).where(eq(customersTable.id, customer.id)).returning();
+    await db.update(customersTable).set({ name }).where(eq(customersTable.id, customer.id));
+    const [updated] = await db.select().from(customersTable).where(eq(customersTable.id, customer.id)).limit(1);
     customer = updated;
   }
   res.json(serializeCustomer(customer));
@@ -56,7 +58,8 @@ router.patch("/customers/me", async (req, res): Promise<void> => {
   const updates: any = {};
   if (name !== undefined) updates.name = name;
   if (language !== undefined) updates.language = language;
-  const [customer] = await db.update(customersTable).set(updates).where(eq(customersTable.id, customerId)).returning();
+  await db.update(customersTable).set(updates).where(eq(customersTable.id, customerId));
+  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
   res.json(serializeCustomer(customer));
 });
 

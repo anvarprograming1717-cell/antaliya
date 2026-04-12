@@ -18,7 +18,8 @@ router.get("/admin/banners", async (_req, res): Promise<void> => {
 router.post("/banners", async (req, res): Promise<void> => {
   const { imageUrl, title, link, isActive, sortOrder } = req.body;
   if (!imageUrl) { res.status(400).json({ error: "imageUrl required" }); return; }
-  const [banner] = await db.insert(bannersTable).values({ imageUrl, title: title ?? null, link: link ?? null, isActive: isActive !== false, sortOrder: sortOrder ?? 0 }).returning();
+  const result = await db.insert(bannersTable).values({ imageUrl, title: title ?? null, link: link ?? null, isActive: isActive !== false, sortOrder: sortOrder ?? 0 });
+  const [banner] = await db.select().from(bannersTable).where(eq(bannersTable.id, result[0].insertId)).limit(1);
   res.status(201).json(banner);
 });
 
@@ -31,7 +32,8 @@ router.patch("/banners/:id", async (req, res): Promise<void> => {
   if (link !== undefined) updates.link = link;
   if (isActive !== undefined) updates.isActive = isActive;
   if (sortOrder !== undefined) updates.sortOrder = sortOrder;
-  const [banner] = await db.update(bannersTable).set(updates).where(eq(bannersTable.id, id)).returning();
+  await db.update(bannersTable).set(updates).where(eq(bannersTable.id, id));
+  const [banner] = await db.select().from(bannersTable).where(eq(bannersTable.id, id)).limit(1);
   if (!banner) { res.status(404).json({ error: "Not found" }); return; }
   res.json(banner);
 });
