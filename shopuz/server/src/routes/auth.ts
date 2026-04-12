@@ -67,4 +67,10 @@ router.post("/customers/logout", async (_req, res): Promise<void> => {
   res.json({ success: true });
 });
 
+// Admin: barcha mijozlar ro'yxati
+router.get("/customers", async (_req, res): Promise<void> => {
+  const customers = await db.select().from(customersTable);
+  res.json(customers.map(serializeCustomer));
+});
+
 export default router;

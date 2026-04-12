@@ -138,3 +138,9 @@ id = "KwCRK5khxkJCzYDHSXl51"
 uri = "file://shopuz/patch13.tar.gz"
 type = "unspecified"
 title = "patch13.tar.gz — Bot + Admin Settings"
+
+[[outputs]]
+id = "XD4KxLCBQJSkNHnPiaia-"
+uri = "file://shopuz/patch14.tar.gz"
+type = "unspecified"
+title = "patch14.tar.gz — Mijozlar + Chat tuzatish"
