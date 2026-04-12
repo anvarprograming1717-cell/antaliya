@@ -16,6 +16,7 @@ import couriersRouter from "./routes/couriers.js";
 import promoCodesRouter from "./routes/promoCodes.js";
 import notificationsRouter from "./routes/notifications.js";
 import uploadRouter from "./routes/upload.js";
+import { startPolling } from "./services/telegram.js";
 
 // __dirname is available in CJS; for ESM builds use fileURLToPath
 const _dirname: string = typeof __dirname !== "undefined"
@@ -77,4 +78,5 @@ app.listen(PORT, () => {
   if (process.env.NODE_ENV === "production") {
     console.log(`   App: http://localhost:${PORT}`);
   }
+  startPolling();
 });

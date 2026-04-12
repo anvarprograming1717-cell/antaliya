@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db.js";
 import { ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable, promoCodesTable, promoCodeUsagesTable } from "../schema.js";
+import { notifyAdmins, notifyCustomerOrderStatus } from "../services/telegram.js";
 
 const router = Router();
 
@@ -112,6 +113,20 @@ router.post("/orders", async (req, res): Promise<void> => {
   if (address) await db.update(customersTable).set({ savedAddress: address }).where(eq(customersTable.id, customerId));
 
   const enriched = await enrichOrder(order);
+
+  const itemsList = cartItems.map(i => `• ${i.product.name} x${i.quantity}`).join("\n");
+  const deliveryText = deliveryMethod === "delivery" ? "🚴 Yetkazib berish" : "🏪 Olib ketish";
+  const paymentText = paymentMethod === "cash" ? "💵 Naqd" : paymentMethod === "card" ? "💳 Karta" : paymentMethod;
+  notifyAdmins(
+    `🛒 <b>Yangi buyurtma #${order.id}</b>\n\n` +
+    `📦 Mahsulotlar:\n${itemsList}\n\n` +
+    `💰 Jami: ${totalPrice.toLocaleString()} so'm\n` +
+    `${deliveryText} | ${paymentText}\n` +
+    (address ? `📍 Manzil: ${address}\n` : "") +
+    (note ? `📝 Izoh: ${note}\n` : "") +
+    `\n👉 Admin panelga kiring`
+  ).catch(() => {});
+
   res.status(201).json(enriched);
 });
 
@@ -121,6 +136,7 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   await db.update(ordersTable).set({ status }).where(eq(ordersTable.id, id));
   const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
   if (!order) { res.status(404).json({ error: "Not found" }); return; }
+  notifyCustomerOrderStatus(order.customerId, order.id, status).catch(() => {});
   res.json(await enrichOrder(order));
 });
 

@@ -66,3 +66,9 @@ id = "6M_oBm5bKNCli6UpXnfkD"
 uri = "file://patch.tar.gz"
 type = "unspecified"
 title = "patch.tar.gz — Faqat app.js (9.7KB)"
+
+[[outputs]]
+id = "ns7UFTo1akPuZKl52o0GL"
+uri = "file://patch2.tar.gz"
+type = "unspecified"
+title = "patch2.tar.gz — Telegram bot qo'shilgan versiya (12KB)"
