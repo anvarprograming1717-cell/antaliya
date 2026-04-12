@@ -84,3 +84,9 @@ id = "qElH5troGFHW38_HKjtBe"
 uri = "file://patch4.tar.gz"
 type = "unspecified"
 title = "patch4.tar.gz — Webhook usuli (cPanel uchun to'g'ri)"
+
+[[outputs]]
+id = "peAjdi3yVanUnA0ypJ-ai"
+uri = "file://patch5.tar.gz"
+type = "unspecified"
+title = "patch5.tar.gz — Yangi bot token bilan"

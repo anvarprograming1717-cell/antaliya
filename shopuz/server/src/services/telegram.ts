@@ -3,7 +3,7 @@ import { settingsTable, customersTable } from "../schema.js";
 import { eq } from "drizzle-orm";
 import type { Request, Response } from "express";
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8359379882:AAGKJztoz5r0llpr6mBv7Z5z2BFQtN3isHM";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8359379882:AAF3LbwKc-XKMZF7ibW3U42xD2tVp45y5yo";
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const DEFAULT_ADMINS = [214840221, 7157868450];
 
