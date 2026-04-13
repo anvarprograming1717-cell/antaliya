@@ -162,3 +162,9 @@ id = "Yd-vPUjVGNsBwQTq_BUJD"
 uri = "file://shopuz/patch17.tar.gz"
 type = "unspecified"
 title = "patch17.tar.gz — Dashboard + Delete tuzatildi"
+
+[[outputs]]
+id = "OqYP_i0nbPuqDRdS3byLK"
+uri = "file://patch18.tar.gz"
+type = "unspecified"
+title = "patch18.tar.gz — Liked va Mahsulot qo'shish tuzatish"

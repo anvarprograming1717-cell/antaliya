@@ -60,20 +60,30 @@ router.get("/products", async (req, res): Promise<void> => {
 });
 
 router.post("/products", async (req, res): Promise<void> => {
-  const { name, description, price, oldPrice, images, categoryId, inStock, unit } = req.body;
-  if (!name || price === undefined) { res.status(400).json({ error: "name and price required" }); return; }
-  const result = await db.insert(productsTable).values({
-    name,
-    description: description ?? null,
-    price,
-    oldPrice: oldPrice ?? null,
-    images: JSON.stringify(images ?? []),
-    categoryId: categoryId ?? null,
-    inStock: inStock !== false,
-    unit: unit ?? "dona",
-  });
-  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, result[0].insertId)).limit(1);
-  res.status(201).json({ ...product, images: JSON.parse(product.images as string), isLiked: false });
+  try {
+    const { name, description, price, oldPrice, images, categoryId, inStock, unit } = req.body;
+    if (!name || price === undefined || price === null) {
+      res.status(400).json({ error: "name and price required" });
+      return;
+    }
+    const [result] = await db.insert(productsTable).values({
+      name,
+      description: description ?? null,
+      price: Number(price),
+      oldPrice: oldPrice != null ? Number(oldPrice) : null,
+      images: JSON.stringify(Array.isArray(images) ? images : []),
+      categoryId: categoryId != null ? Number(categoryId) : null,
+      inStock: inStock !== false ? 1 : 0,
+      unit: unit ?? "dona",
+    }) as any;
+    const insertId = result?.insertId ?? result;
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, Number(insertId))).limit(1);
+    if (!product) { res.status(201).json({ id: insertId, name, price, images: images ?? [], isLiked: false }); return; }
+    res.status(201).json({ ...product, images: typeof product.images === "string" ? JSON.parse(product.images) : (product.images ?? []), isLiked: false });
+  } catch (err: any) {
+    console.error("POST /products error:", err);
+    res.status(500).json({ error: err.message || "Server error" });
+  }
 });
 
 router.get("/products/:id", async (req, res): Promise<void> => {

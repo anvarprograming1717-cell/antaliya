@@ -52,11 +52,15 @@ export default function Products() {
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!form.name.trim()) { alert("Mahsulot nomini kiriting!"); return; }
+    const priceNum = parseFloat(form.price);
+    if (!form.price || isNaN(priceNum) || priceNum <= 0) { alert("To'g'ri narx kiriting!"); return; }
+
     const data = {
-      name: form.name,
-      description: form.description || undefined,
-      price: parseFloat(form.price),
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      price: priceNum,
       oldPrice: form.oldPrice ? parseFloat(form.oldPrice) : undefined,
       images: form.images.split("\n").map(s => s.trim()).filter(Boolean),
       categoryId: form.categoryId ? parseInt(form.categoryId) : undefined,
@@ -65,9 +69,21 @@ export default function Products() {
     };
 
     if (editId) {
-      updateProduct.mutate({ id: editId, data }, { onSuccess: () => { invalidate(); setShowModal(false); } });
+      updateProduct.mutate(
+        { id: editId, data },
+        {
+          onSuccess: () => { invalidate(); setShowModal(false); },
+          onError: (err: any) => alert("Xato: " + (err?.message || JSON.stringify(err))),
+        }
+      );
     } else {
-      createProduct.mutate({ data: data as any }, { onSuccess: () => { invalidate(); setShowModal(false); } });
+      createProduct.mutate(
+        { data: data as any },
+        {
+          onSuccess: () => { invalidate(); setShowModal(false); },
+          onError: (err: any) => alert("Xato: " + (err?.message || JSON.stringify(err))),
+        }
+      );
     }
   };
 
