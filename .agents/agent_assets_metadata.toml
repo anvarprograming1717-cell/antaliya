@@ -180,3 +180,9 @@ id = "doG4V7pe130cyI668PKnC"
 uri = "file://patch20.tar.gz"
 type = "unspecified"
 title = "patch20.tar.gz — Dashboard statistika tuzatish"
+
+[[outputs]]
+id = "kjh1mCOdyDruFR2cGL2N6"
+uri = "file://patch21.tar.gz"
+type = "unspecified"
+title = "patch21.tar.gz — 11 ta yangilik"

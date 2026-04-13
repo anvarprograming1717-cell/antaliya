@@ -69,21 +69,31 @@ router.patch("/admin/password", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
 
+// Delivery settings — includes estimatedMinutes
 router.get("/admin/delivery-settings", async (_req, res): Promise<void> => {
   const all = await db.select().from(settingsTable);
   const m: Record<string, string> = {};
   all.forEach(s => { m[s.key] = s.value; });
-  res.json({ deliveryFee: parseFloat(m.deliveryFee ?? "15000"), freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000") });
+  res.json({
+    deliveryFee: parseFloat(m.deliveryFee ?? "15000"),
+    freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000"),
+    estimatedMinutes: parseInt(m.estimatedMinutes ?? "45"),
+  });
 });
 
 router.patch("/admin/delivery-settings", async (req, res): Promise<void> => {
-  const { deliveryFee, freeDeliveryThreshold } = req.body;
+  const { deliveryFee, freeDeliveryThreshold, estimatedMinutes } = req.body;
   if (deliveryFee !== undefined) await upsert("deliveryFee", String(deliveryFee));
   if (freeDeliveryThreshold !== undefined) await upsert("freeDeliveryThreshold", String(freeDeliveryThreshold));
+  if (estimatedMinutes !== undefined) await upsert("estimatedMinutes", String(estimatedMinutes));
   const all = await db.select().from(settingsTable);
   const m: Record<string, string> = {};
   all.forEach(s => { m[s.key] = s.value; });
-  res.json({ deliveryFee: parseFloat(m.deliveryFee ?? "15000"), freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000") });
+  res.json({
+    deliveryFee: parseFloat(m.deliveryFee ?? "15000"),
+    freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000"),
+    estimatedMinutes: parseInt(m.estimatedMinutes ?? "45"),
+  });
 });
 
 router.get("/admin/telegram-admins", async (_req, res): Promise<void> => {
@@ -97,6 +107,55 @@ router.patch("/admin/telegram-admins", async (req, res): Promise<void> => {
   if (!Array.isArray(adminIds)) { res.status(400).json({ error: "adminIds array required" }); return; }
   await upsert("telegram_admins", adminIds.join(","));
   res.json({ adminIds });
+});
+
+// Dam olish kunlari (ish kunlari)
+// workDays: comma-separated JS day numbers. 0=Yak, 1=Du, 2=Se, 3=Ch, 4=Pa, 5=Ju, 6=Sha
+// Default: 1,2,3,4,5,6 (Dush-Sha ishlaydi, Yak dam oladi)
+router.get("/work-schedule", async (_req, res): Promise<void> => {
+  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "workDays")).limit(1);
+  const workDays = setting?.value
+    ? setting.value.split(",").map(Number).filter(n => !isNaN(n))
+    : [1, 2, 3, 4, 5, 6];
+
+  const now = new Date();
+  const todayDay = now.getDay(); // 0=Sun, 1=Mon, ...
+  const isOpen = workDays.includes(todayDay);
+
+  // Keyingi ish kunini toping
+  let nextWorkDay = "";
+  if (!isOpen) {
+    for (let i = 1; i <= 7; i++) {
+      const nextDay = (todayDay + i) % 7;
+      if (workDays.includes(nextDay)) {
+        const nextDate = new Date(now);
+        nextDate.setDate(now.getDate() + i);
+        nextWorkDay = nextDate.toLocaleDateString("ru-RU", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        });
+        break;
+      }
+    }
+  }
+
+  res.json({ isOpen, workDays, nextWorkDay });
+});
+
+router.get("/admin/work-schedule", async (_req, res): Promise<void> => {
+  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "workDays")).limit(1);
+  const workDays = setting?.value
+    ? setting.value.split(",").map(Number).filter((n: number) => !isNaN(n))
+    : [1, 2, 3, 4, 5, 6];
+  res.json({ workDays });
+});
+
+router.patch("/admin/work-schedule", async (req, res): Promise<void> => {
+  const { workDays } = req.body;
+  if (!Array.isArray(workDays)) { res.status(400).json({ error: "workDays array required" }); return; }
+  await upsert("workDays", workDays.join(","));
+  res.json({ workDays });
 });
 
 export default router;

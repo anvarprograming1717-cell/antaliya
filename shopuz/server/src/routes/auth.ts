@@ -73,4 +73,27 @@ router.get("/customers", async (_req, res): Promise<void> => {
   res.json(customers.map(serializeCustomer));
 });
 
+// Admin: mijozni o'chirish
+router.delete("/customers/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  await db.delete(customersTable).where(eq(customersTable.id, id));
+  res.json({ success: true });
+});
+
+// Mijoz o'z telefon raqamini o'zgartiradi
+router.patch("/customers/me/phone", async (req, res): Promise<void> => {
+  const customerId = (req as any).customerId;
+  if (!customerId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { phone } = req.body;
+  if (!phone) { res.status(400).json({ error: "phone required" }); return; }
+  const existing = await db.select().from(customersTable).where(eq(customersTable.phone, phone)).limit(1);
+  if (existing.length > 0 && existing[0].id !== customerId) {
+    res.status(400).json({ error: "Bu telefon allaqachon ro'yxatdan o'tgan" });
+    return;
+  }
+  await db.update(customersTable).set({ phone }).where(eq(customersTable.id, customerId));
+  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+  res.json(serializeCustomer(customer));
+});
+
 export default router;

@@ -1,6 +1,6 @@
 import { db } from "../db.js";
-import { settingsTable, customersTable } from "../schema.js";
-import { eq } from "drizzle-orm";
+import { settingsTable, customersTable, ordersTable } from "../schema.js";
+import { eq, desc } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { appendFileSync, mkdirSync } from "fs";
 import path from "path";
@@ -55,6 +55,22 @@ async function sendMessageWithButton(chatId: number | string, text: string, butt
   });
   tgLog(`sendMessageWithButton ← ${chatId}: ok=${result?.ok}`);
   return result;
+}
+
+async function sendWithKeyboard(chatId: number | string, text: string): Promise<any> {
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    reply_markup: {
+      keyboard: [
+        [{ text: "📦 Buyurtmalarim" }, { text: "🛒 Savat" }],
+        [{ text: "❓ Yordam" }, { text: "🔗 Hisobni ulash" }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
+  });
 }
 
 async function getAdminIds(): Promise<number[]> {
@@ -125,16 +141,22 @@ async function processUpdate(update: any): Promise<void> {
 
   if (text === "/start" || text?.startsWith("/start ")) {
     tgLog("processUpdate: handling /start");
-    await sendMessageWithButton(
+    await sendWithKeyboard(
       chatId,
-      `Assalomu aleykum! Xush kelibsiz <b>Fresh 777</b> botga! 🛍️\n\nBuyurtma berish uchun quyidagi tugmani bosing 👇`,
-      "🛒 Buyurtma berish",
-      "https://fresh-777.uz"
+      `Assalomu aleykum! Xush kelibsiz <b>Fresh 777</b> botga! 🛍️\n\n` +
+      `Buyurtma berish va kuzatish uchun quyidagi tugmalardan foydalaning 👇\n\n` +
+      `📱 Hisobingizni ulash uchun <b>Hisobni ulash</b> tugmasini bosing.`
     );
     return;
   }
 
-  if (text?.startsWith("/link ")) {
+  if (text?.startsWith("/link ") || text === "🔗 Hisobni ulash") {
+    if (text === "🔗 Hisobni ulash") {
+      await sendMessage(chatId,
+        `📱 Hisobni ulash uchun telefon raqamingizni yuboring:\n\nFormat: <code>/link +998901234567</code>`
+      );
+      return;
+    }
     const phone = text.substring(6).trim();
     tgLog(`processUpdate: /link phone="${phone}" chatId=${chatId}`);
     if (!phone) { await sendMessage(chatId, "❌ Format: /link +998901234567"); return; }
@@ -147,11 +169,76 @@ async function processUpdate(update: any): Promise<void> {
       }
       await db.update(customersTable).set({ telegramId: String(chatId) }).where(eq(customersTable.id, customer.id));
       tgLog(`processUpdate: /link — linked customer ${customer.id} to chatId ${chatId}`);
-      await sendMessage(chatId, `✅ Hisobingiz muvaffaqiyatli ulandi!\n\nEndi buyurtmalaringiz holati haqida xabar olasiz. 🎉`);
+      await sendWithKeyboard(chatId,
+        `✅ Hisobingiz muvaffaqiyatli ulandi!\n\nEndi buyurtmalaringiz holati haqida xabar olasiz 🎉\n\nQuyidagi tugmalardan foydalaning 👇`
+      );
     } catch (e) {
       tgLog(`processUpdate: /link ERROR: ${String(e)}`);
       await sendMessage(chatId, "❌ Xatolik yuz berdi. Qayta urinib ko'ring.");
     }
+    return;
+  }
+
+  // Foydalanuvchi tugmalari
+  if (text === "📦 Buyurtmalarim") {
+    try {
+      const [customer] = await db.select().from(customersTable).where(eq(customersTable.telegramId, String(chatId))).limit(1);
+      if (!customer) {
+        await sendMessage(chatId,
+          `❗ Hisobingiz ulanmagan.\n\n/link +998XXXXXXXXX buyrug'i orqali hisobingizni ulang.`
+        );
+        return;
+      }
+      const orders = await db.select().from(ordersTable)
+        .where(eq(ordersTable.customerId, customer.id))
+        .orderBy(desc(ordersTable.id))
+        .limit(5);
+      if (orders.length === 0) {
+        await sendMessage(chatId, "📦 Hozircha buyurtmalaringiz yo'q.");
+        return;
+      }
+      const statusEmoji: Record<string, string> = {
+        new: "🆕", preparing: "👨‍🍳", delivered: "✅", cancelled: "❌",
+      };
+      const statusName: Record<string, string> = {
+        new: "Yangi", preparing: "Tayyorlanmoqda", delivered: "Yetkazildi", cancelled: "Bekor qilindi",
+      };
+      const lines = orders.map(o =>
+        `${statusEmoji[o.status] || "📦"} <b>Buyurtma #${o.id}</b> — ${statusName[o.status] || o.status}\n` +
+        `💰 ${Number(o.totalAmount).toLocaleString()} so'm\n` +
+        `📅 ${new Date(o.createdAt).toLocaleDateString("ru-RU")}`
+      );
+      await sendMessageWithButton(
+        chatId,
+        `📦 <b>So'nggi buyurtmalaringiz:</b>\n\n${lines.join("\n\n")}`,
+        "🔍 Batafsil ko'rish",
+        "https://fresh-777.uz/orders"
+      );
+    } catch (e) {
+      tgLog(`processUpdate: buyurtmalarim ERROR: ${String(e)}`);
+      await sendMessage(chatId, "❌ Xatolik yuz berdi. Qayta urinib ko'ring.");
+    }
+    return;
+  }
+
+  if (text === "🛒 Savat") {
+    await sendMessageWithButton(
+      chatId,
+      `🛒 <b>Savat</b>\n\nSavatchangizni ko'rish va buyurtma berish uchun saytga o'ting 👇`,
+      "🛒 Savatni ko'rish",
+      "https://fresh-777.uz/cart"
+    );
+    return;
+  }
+
+  if (text === "❓ Yordam") {
+    await sendMessage(chatId,
+      `❓ <b>Yordam</b>\n\n` +
+      `📱 Buyurtma berish: <a href="https://fresh-777.uz">fresh-777.uz</a>\n\n` +
+      `🔗 Hisobni ulash:\n<code>/link +998901234567</code>\n(Telefon raqamingizni kiriting)\n\n` +
+      `📦 Buyurtmalarni ko'rish: <b>Buyurtmalarim</b> tugmasini bosing\n\n` +
+      `☎️ Qo'ng'iroq qilish: +998 (XX) XXX-XX-XX`
+    );
     return;
   }
 
@@ -160,6 +247,9 @@ async function processUpdate(update: any): Promise<void> {
 
   if (!adminIds.includes(from?.id)) {
     tgLog(`processUpdate: non-admin message from ${from?.id}, ignoring`);
+    await sendMessage(chatId,
+      `❗ Bu buyruq tanilmadi.\n\nQuyidagi tugmalardan foydalaning yoki <b>Yordam</b> tugmasini bosing.`
+    );
     return;
   }
 

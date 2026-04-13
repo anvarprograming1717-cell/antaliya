@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Heart, ShoppingCart, ChevronLeft, ChevronRight, Check } from "lucide-react";
-import { useGetProduct, getGetProductQueryKey, useAddToCart, getGetCartQueryKey } from "@workspace/api-client-react";
+import {
+  useGetProduct, getGetProductQueryKey,
+  useAddToCart, getGetCartQueryKey,
+  useListProducts, getListProductsQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { isProductLiked, toggleLikedProduct } from "@/lib/liked-local";
 import { Button } from "@/components/ui/button";
@@ -20,6 +24,13 @@ export default function ProductDetail() {
 
   const { data: product, isLoading } = useGetProduct(id, { query: { enabled: !!id, queryKey: getGetProductQueryKey(id) } });
   const addToCart = useAddToCart();
+
+  const { data: relatedData } = useListProducts(
+    { categoryId: product?.categoryId ?? undefined },
+    { query: { enabled: !!product?.categoryId, queryKey: getListProductsQueryKey({ categoryId: product?.categoryId ?? undefined }) } }
+  );
+
+  const relatedProducts = relatedData?.products?.filter(p => p.id !== id).slice(0, 6) ?? [];
 
   useEffect(() => {
     const handler = () => setLikedVersion(v => v + 1);
@@ -71,8 +82,8 @@ export default function ProductDetail() {
     <div className="min-h-screen pb-6">
       {/* Image Section */}
       <div className="relative bg-muted/30">
-        <div className="aspect-square overflow-hidden">
-          <img src={images[imageIndex]} alt={product.name} className="w-full h-full object-cover" />
+        <div className="aspect-square overflow-hidden flex items-center justify-center bg-muted/20">
+          <img src={images[imageIndex]} alt={product.name} className="w-full h-full object-contain" />
         </div>
 
         <button
@@ -161,7 +172,7 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* Miqdor + Savatga qo'shish — sahifa ichida, scroll bilan birga */}
+        {/* Miqdor + Savatga qo'shish */}
         <div className="flex gap-3 items-center pt-2 pb-2">
           <div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3 shrink-0">
             <button
@@ -194,6 +205,38 @@ export default function ProductDetail() {
             )}
           </Button>
         </div>
+
+        {/* Tavsiya etilgan mahsulotlar */}
+        {relatedProducts.length > 0 && (
+          <div className="pt-4">
+            <h3 className="font-bold text-lg mb-4">O'xshash mahsulotlar</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {relatedProducts.map((rp, i) => (
+                <Link key={rp.id} href={`/product/${rp.id}`}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    className="bg-card rounded-[1.5rem] p-3 shadow-sm border border-border/50"
+                    data-testid={`related-product-${rp.id}`}
+                  >
+                    <div className="aspect-square rounded-xl overflow-hidden mb-2 bg-muted/30 flex items-center justify-center">
+                      <img
+                        src={(rp.images as string[])[0] || "https://placehold.co/300"}
+                        alt={rp.name}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <h4 className="font-semibold text-xs line-clamp-2 leading-tight mb-1">{rp.name}</h4>
+                    <span className="font-bold text-primary text-xs">
+                      {(rp.price as number).toLocaleString()} so'm
+                    </span>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );
