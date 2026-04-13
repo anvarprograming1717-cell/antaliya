@@ -68,7 +68,8 @@ async function sendWithKeyboard(chatId: number | string, text: string): Promise<
         [{ text: "❓ Yordam" }, { text: "🔗 Hisobni ulash" }],
       ],
       resize_keyboard: true,
-      persistent: true,
+      is_persistent: true,
+      one_time_keyboard: false,
     },
   });
 }
@@ -247,8 +248,8 @@ async function processUpdate(update: any): Promise<void> {
 
   if (!adminIds.includes(from?.id)) {
     tgLog(`processUpdate: non-admin message from ${from?.id}, ignoring`);
-    await sendMessage(chatId,
-      `❗ Bu buyruq tanilmadi.\n\nQuyidagi tugmalardan foydalaning yoki <b>Yordam</b> tugmasini bosing.`
+    await sendWithKeyboard(chatId,
+      `❗ Bu buyruq tanilmadi.\n\nQuyidagi tugmalardan foydalaning 👇`
     );
     return;
   }

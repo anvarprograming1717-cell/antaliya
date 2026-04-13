@@ -80,12 +80,6 @@ type = "unspecified"
 title = "patch3.tar.gz — Bot fix (webhook o'chirish + loglash)"
 
 [[outputs]]
-id = "qElH5troGFHW38_HKjtBe"
-uri = "file://patch4.tar.gz"
-type = "unspecified"
-title = "patch4.tar.gz — Webhook usuli (cPanel uchun to'g'ri)"
-
-[[outputs]]
 id = "peAjdi3yVanUnA0ypJ-ai"
 uri = "file://patch5.tar.gz"
 type = "unspecified"
@@ -186,3 +180,9 @@ id = "kjh1mCOdyDruFR2cGL2N6"
 uri = "file://patch21.tar.gz"
 type = "unspecified"
 title = "patch21.tar.gz — 11 ta yangilik"
+
+[[outputs]]
+id = "a22fR8gQoL6Ymhv-IB9gR"
+uri = "file://patch22.tar.gz"
+type = "unspecified"
+title = "patch22.tar.gz — 6 muammo tuzatildi"

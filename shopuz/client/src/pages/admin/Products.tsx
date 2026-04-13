@@ -27,8 +27,12 @@ export default function Products() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [search, setSearch] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>();
 
-  const { data: productsData, isLoading } = useListProducts({ search: search || undefined }, { query: { queryKey: getListProductsQueryKey({ search: search || undefined }) } });
+  const { data: productsData, isLoading } = useListProducts(
+    { search: search || undefined, categoryId: filterCategoryId },
+    { query: { queryKey: getListProductsQueryKey({ search: search || undefined, categoryId: filterCategoryId }) } }
+  );
   const { data: categories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -36,7 +40,11 @@ export default function Products() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
 
-  const openCreate = () => { setEditId(null); setForm(emptyForm); setShowModal(true); };
+  const openCreate = () => {
+    setEditId(null);
+    setForm({ ...emptyForm, categoryId: filterCategoryId ? String(filterCategoryId) : "" });
+    setShowModal(true);
+  };
   const openEdit = (p: any) => {
     setEditId(p.id);
     setForm({
@@ -101,13 +109,24 @@ export default function Products() {
         </Button>
       </div>
 
-      <Input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Mahsulot qidirish..."
-        className="rounded-xl max-w-xs"
-        data-testid="input-search"
-      />
+      <div className="flex gap-3 flex-wrap">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Mahsulot qidirish..."
+          className="rounded-xl max-w-xs"
+          data-testid="input-search"
+        />
+        <select
+          value={filterCategoryId ?? ""}
+          onChange={e => setFilterCategoryId(e.target.value ? parseInt(e.target.value) : undefined)}
+          className="h-10 rounded-xl border border-border bg-background px-3 text-sm min-w-[160px]"
+          data-testid="select-filter-category"
+        >
+          <option value="">Barcha kategoriyalar</option>
+          {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">{Array(5).fill(0).map((_, i) => <Skeleton key={i} className="w-full h-16 rounded-xl" />)}</div>

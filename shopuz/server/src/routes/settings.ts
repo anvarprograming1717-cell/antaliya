@@ -70,15 +70,32 @@ router.patch("/admin/password", async (req, res): Promise<void> => {
 });
 
 // Delivery settings — includes estimatedMinutes
-router.get("/admin/delivery-settings", async (_req, res): Promise<void> => {
+// Client hook uses /api/delivery (not /api/admin/delivery-settings)
+async function getDeliverySettingsJson(db: any) {
   const all = await db.select().from(settingsTable);
   const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  res.json({
+  all.forEach((s: any) => { m[s.key] = s.value; });
+  return {
     deliveryFee: parseFloat(m.deliveryFee ?? "15000"),
     freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000"),
     estimatedMinutes: parseInt(m.estimatedMinutes ?? "45"),
-  });
+  };
+}
+
+router.get("/delivery", async (_req, res): Promise<void> => {
+  res.json(await getDeliverySettingsJson(db));
+});
+
+router.patch("/delivery", async (req, res): Promise<void> => {
+  const { deliveryFee, freeDeliveryThreshold, estimatedMinutes } = req.body;
+  if (deliveryFee !== undefined) await upsert("deliveryFee", String(deliveryFee));
+  if (freeDeliveryThreshold !== undefined) await upsert("freeDeliveryThreshold", String(freeDeliveryThreshold));
+  if (estimatedMinutes !== undefined) await upsert("estimatedMinutes", String(estimatedMinutes));
+  res.json(await getDeliverySettingsJson(db));
+});
+
+router.get("/admin/delivery-settings", async (_req, res): Promise<void> => {
+  res.json(await getDeliverySettingsJson(db));
 });
 
 router.patch("/admin/delivery-settings", async (req, res): Promise<void> => {
@@ -86,14 +103,7 @@ router.patch("/admin/delivery-settings", async (req, res): Promise<void> => {
   if (deliveryFee !== undefined) await upsert("deliveryFee", String(deliveryFee));
   if (freeDeliveryThreshold !== undefined) await upsert("freeDeliveryThreshold", String(freeDeliveryThreshold));
   if (estimatedMinutes !== undefined) await upsert("estimatedMinutes", String(estimatedMinutes));
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  res.json({
-    deliveryFee: parseFloat(m.deliveryFee ?? "15000"),
-    freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000"),
-    estimatedMinutes: parseInt(m.estimatedMinutes ?? "45"),
-  });
+  res.json(await getDeliverySettingsJson(db));
 });
 
 router.get("/admin/telegram-admins", async (_req, res): Promise<void> => {

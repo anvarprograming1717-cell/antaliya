@@ -7,8 +7,12 @@ import { sendMessage } from "../services/telegram.js";
 const router = Router();
 
 router.get("/notifications", async (_req, res): Promise<void> => {
-  const notifications = await db.select().from(notificationsTable).orderBy(notificationsTable.id);
-  res.json(notifications.reverse());
+  try {
+    const notifications = await db.select().from(notificationsTable).orderBy(notificationsTable.id);
+    res.json([...notifications].reverse());
+  } catch (e) {
+    res.json([]);
+  }
 });
 
 router.post("/notifications/send", async (req, res): Promise<void> => {
@@ -20,7 +24,7 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
   // Telegram orqali barcha ulangan foydalanuvchilarga xabar yuborish
   try {
     const customers = await db.select().from(customersTable).where(isNotNull(customersTable.telegramId));
-    const text = `🔔 <b>Yangi xabar:</b>\n\n${message}`;
+    const text = `🔔 <b>Assalomu aleykum!</b>\n\n${message}`;
     await Promise.allSettled(
       customers
         .filter(c => c.telegramId)
@@ -29,6 +33,17 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
   } catch {}
 
   res.status(201).json(n);
+});
+
+router.delete("/notifications/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "invalid id" }); return; }
+  try {
+    await db.delete(notificationsTable).where(eq(notificationsTable.id, id));
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.post("/notifications/read", async (req, res): Promise<void> => {
