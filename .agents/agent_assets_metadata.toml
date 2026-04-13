@@ -168,3 +168,9 @@ id = "OqYP_i0nbPuqDRdS3byLK"
 uri = "file://patch18.tar.gz"
 type = "unspecified"
 title = "patch18.tar.gz — Liked va Mahsulot qo'shish tuzatish"
+
+[[outputs]]
+id = "nwzTZQHqtxAo4w2blMsti"
+uri = "file://patch19.tar.gz"
+type = "unspecified"
+title = "patch19.tar.gz — Лайки через localStorage"

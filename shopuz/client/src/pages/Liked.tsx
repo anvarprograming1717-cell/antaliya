@@ -1,51 +1,37 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Heart, ShoppingCart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { Link } from "wouter";
-import { useGetLiked, getGetLikedQueryKey, useToggleLike, getListProductsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { getLikedProducts, toggleLikedProduct } from "@/lib/liked-local";
 
 export default function Liked() {
-  const queryClient = useQueryClient();
-  const { data: products, isLoading } = useGetLiked({ query: { queryKey: getGetLikedQueryKey() } });
-  const toggleLike = useToggleLike();
+  const [products, setProducts] = useState(getLikedProducts());
+
+  useEffect(() => {
+    const handler = () => setProducts(getLikedProducts());
+    window.addEventListener("liked-changed", handler);
+    return () => window.removeEventListener("liked-changed", handler);
+  }, []);
 
   const handleUnlike = (e: React.MouseEvent, productId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleLike.mutate(
-      { data: { productId } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetLikedQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-        },
-      }
-    );
+    const product = products.find(p => p.id === productId);
+    if (product) toggleLikedProduct(product);
   };
-
-  if (isLoading) {
-    return (
-      <div className="p-4">
-        <div className="grid grid-cols-2 gap-4">
-          {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />)}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen pb-6">
       <div className="sticky top-0 z-40 glass-panel border-b border-white/20 px-4 py-3">
         <h1 className="text-xl font-bold">Sevimlilar</h1>
-        {products && products.length > 0 && (
+        {products.length > 0 && (
           <p className="text-xs text-muted-foreground">{products.length} ta mahsulot</p>
         )}
       </div>
 
       <div className="px-4 mt-4">
-        {!products || products.length === 0 ? (
+        {products.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -79,10 +65,16 @@ export default function Liked() {
                     <Heart className="w-4 h-4 text-white fill-white" />
                   </button>
                   <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-muted/30">
-                    <img src={product.images?.[0] || "https://placehold.co/400"} alt={product.name} className="w-full h-full object-cover" />
+                    <img
+                      src={product.images?.[0] || "https://placehold.co/400"}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <h3 className="font-semibold text-sm line-clamp-2 mb-1">{product.name}</h3>
-                  <span className="font-bold text-primary text-sm">{(product.price as number).toLocaleString()} so'm</span>
+                  <span className="font-bold text-primary text-sm">
+                    {(product.price as number).toLocaleString()} so'm
+                  </span>
                 </motion.div>
               </Link>
             ))}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Heart, Search, MessageCircle, ShoppingBag } from "lucide-react";
@@ -9,19 +9,19 @@ import {
   getListCategoriesQueryKey,
   useListBanners,
   getListBannersQueryKey,
-  useToggleLike,
   useGetSiteSettings,
   getGetSiteSettingsQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { isProductLiked, toggleLikedProduct } from "@/lib/liked-local";
 
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
   const [search, setSearch] = useState("");
-  const queryClient = useQueryClient();
+  const [, setLikedVersion] = useState(0);
+
   const { data: siteSettings } = useGetSiteSettings({ query: { queryKey: getGetSiteSettingsQueryKey() } });
   const siteName = siteSettings?.siteName || "ShopUz";
   const logoUrl = siteSettings?.logoUrl || null;
@@ -33,19 +33,26 @@ export default function Home() {
     { query: { queryKey: getListProductsQueryKey({ categoryId: selectedCategory, search: search || undefined }) } }
   );
 
-  const toggleLike = useToggleLike();
+  useEffect(() => {
+    const handler = () => setLikedVersion(v => v + 1);
+    window.addEventListener("liked-changed", handler);
+    return () => window.removeEventListener("liked-changed", handler);
+  }, []);
 
-  const handleLike = (e: React.MouseEvent, productId: number) => {
+  const handleLike = (e: React.MouseEvent, product: any) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleLike.mutate(
-      { data: { productId } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-        }
-      }
-    );
+    toggleLikedProduct({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      oldPrice: product.oldPrice,
+      images: product.images ?? [],
+      unit: product.unit,
+      inStock: product.inStock,
+      categoryId: product.categoryId,
+      categoryName: product.categoryName,
+    });
   };
 
   return (
@@ -154,11 +161,11 @@ export default function Home() {
                 data-testid={`card-product-${product.id}`}
               >
                 <button
-                  onClick={(e) => handleLike(e, product.id)}
+                  onClick={(e) => handleLike(e, product)}
                   className="absolute top-4 right-4 z-10 w-8 h-8 glass rounded-full flex items-center justify-center text-red-500 shadow-sm"
                   data-testid={`button-like-${product.id}`}
                 >
-                  <Heart className={`w-4 h-4 ${product.isLiked ? "fill-current" : ""}`} />
+                  <Heart className={`w-4 h-4 ${isProductLiked(product.id) ? "fill-current" : ""}`} />
                 </button>
                 <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-muted/30">
                   <img src={product.images[0] || "https://placehold.co/400"} alt={product.name} className="w-full h-full object-cover" />

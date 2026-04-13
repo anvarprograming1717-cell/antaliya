@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Heart, ShoppingCart, ChevronLeft, ChevronRight, Check } from "lucide-react";
-import { useGetProduct, getGetProductQueryKey, useAddToCart, useToggleLike, getGetCartQueryKey, getGetLikedQueryKey, getListProductsQueryKey } from "@workspace/api-client-react";
+import { useGetProduct, getGetProductQueryKey, useAddToCart, getGetCartQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { isProductLiked, toggleLikedProduct } from "@/lib/liked-local";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,11 +15,17 @@ export default function ProductDetail() {
   const [imageIndex, setImageIndex] = useState(0);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [, setLikedVersion] = useState(0);
   const queryClient = useQueryClient();
 
   const { data: product, isLoading } = useGetProduct(id, { query: { enabled: !!id, queryKey: getGetProductQueryKey(id) } });
   const addToCart = useAddToCart();
-  const toggleLike = useToggleLike();
+
+  useEffect(() => {
+    const handler = () => setLikedVersion(v => v + 1);
+    window.addEventListener("liked-changed", handler);
+    return () => window.removeEventListener("liked-changed", handler);
+  }, []);
 
   if (isLoading) {
     return (
@@ -48,16 +55,16 @@ export default function ProductDetail() {
   };
 
   const handleLike = () => {
-    toggleLike.mutate(
-      { data: { productId: product.id } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetProductQueryKey(id) });
-          queryClient.invalidateQueries({ queryKey: getGetLikedQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-        },
-      }
-    );
+    if (!product) return;
+    toggleLikedProduct({
+      id: product.id,
+      name: product.name,
+      price: product.price as number,
+      oldPrice: product.oldPrice as number | null | undefined,
+      images: (product.images as string[]) ?? [],
+      unit: product.unit as string | undefined,
+      inStock: product.inStock as boolean | undefined,
+    });
   };
 
   return (
@@ -81,7 +88,7 @@ export default function ProductDetail() {
           className="absolute top-4 right-4 w-10 h-10 glass rounded-full flex items-center justify-center shadow-lg text-red-500"
           data-testid="button-like"
         >
-          <Heart className={`w-5 h-5 ${product.isLiked ? "fill-current" : ""}`} />
+          <Heart className={`w-5 h-5 ${isProductLiked(product.id) ? "fill-current" : ""}`} />
         </button>
 
         {images.length > 1 && (
