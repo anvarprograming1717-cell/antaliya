@@ -174,3 +174,9 @@ id = "nwzTZQHqtxAo4w2blMsti"
 uri = "file://patch19.tar.gz"
 type = "unspecified"
 title = "patch19.tar.gz — Лайки через localStorage"
+
+[[outputs]]
+id = "doG4V7pe130cyI668PKnC"
+uri = "file://patch20.tar.gz"
+type = "unspecified"
+title = "patch20.tar.gz — Dashboard statistika tuzatish"
