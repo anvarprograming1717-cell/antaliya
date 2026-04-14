@@ -30,15 +30,15 @@ export default function Products() {
   const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>();
 
   const { data: productsData, isLoading } = useListProducts(
-    { search: search || undefined, categoryId: filterCategoryId },
-    { query: { queryKey: getListProductsQueryKey({ search: search || undefined, categoryId: filterCategoryId }) } }
+    { search: search || undefined, categoryId: filterCategoryId, limit: 200 },
+    { query: { queryKey: getListProductsQueryKey({ search: search || undefined, categoryId: filterCategoryId, limit: 200 }) } }
   );
   const { data: categories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/products"] });
 
   const openCreate = () => {
     setEditId(null);
