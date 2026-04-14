@@ -233,13 +233,26 @@ async function processUpdate(update: any): Promise<void> {
   }
 
   if (text === "❓ Yordam") {
-    await sendMessage(chatId,
-      `❓ <b>Yordam</b>\n\n` +
-      `📱 Buyurtma berish: <a href="https://fresh-777.uz">fresh-777.uz</a>\n\n` +
-      `🔗 Hisobni ulash:\n<code>/link +998901234567</code>\n(Telefon raqamingizni kiriting)\n\n` +
-      `📦 Buyurtmalarni ko'rish: <b>Buyurtmalarim</b> tugmasini bosing\n\n` +
-      `☎️ Qo'ng'iroq qilish: +998 (XX) XXX-XX-XX`
-    );
+    try {
+      const allSettings = await db.select().from(settingsTable);
+      const m: Record<string, string> = {};
+      allSettings.forEach(s => { m[s.key] = s.value; });
+      const supportPhone = m.supportPhone || "";
+      const supportTelegram = m.supportTelegram || "";
+      let contactLines = "";
+      if (supportPhone) contactLines += `\n☎️ Telefon: <b>${supportPhone}</b>`;
+      if (supportTelegram) contactLines += `\n💬 Telegram: <b>${supportTelegram}</b>`;
+      if (!contactLines) contactLines = "\n☎️ Telefon: ko'rsatilmagan";
+      await sendMessage(chatId,
+        `❓ <b>Yordam</b>\n\n` +
+        `📱 Buyurtma berish: <a href="https://fresh-777.uz">fresh-777.uz</a>\n\n` +
+        `🔗 Hisobni ulash:\n<code>/link +998901234567</code>\n(Telefon raqamingizni kiriting)\n\n` +
+        `📦 Buyurtmalarni ko'rish: <b>Buyurtmalarim</b> tugmasini bosing\n\n` +
+        `📞 Aloqa:${contactLines}`
+      );
+    } catch {
+      await sendMessage(chatId, `❓ <b>Yordam</b>\n\n📱 <a href="https://fresh-777.uz">fresh-777.uz</a>`);
+    }
     return;
   }
 

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db.js";
 import { messagesTable, customersTable } from "../schema.js";
+import { notifyAdmins } from "../services/telegram.js";
 
 const router = Router();
 
@@ -60,6 +61,20 @@ router.post("/messages", async (req, res): Promise<void> => {
     mediaType: mediaType ?? null,
   });
   const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, result[0].insertId)).limit(1);
+
+  // Adminga Telegram orqali bildirishnoma
+  try {
+    const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+    const customerName = customer?.name || customer?.phone || `Mijoz #${customerId}`;
+    notifyAdmins(
+      `💬 <b>Yangi xabar!</b>\n\n` +
+      `👤 Mijoz: <b>${customerName}</b>\n` +
+      (customer?.phone ? `📱 Tel: ${customer.phone}\n` : "") +
+      `\n📝 "${text ?? ""}"\n\n` +
+      `Admin panelda javob bering 👇\nhttps://fresh-777.uz/admin/chat`
+    ).catch(() => {});
+  } catch {}
+
   res.status(201).json(msg);
 });
 
