@@ -37,8 +37,8 @@ export default function Home() {
   const { data: banners, isLoading: loadingBanners } = useListBanners({ query: { queryKey: getListBannersQueryKey() } });
   const { data: categories, isLoading: loadingCategories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
   const { data: productsData, isLoading: loadingProducts } = useListProducts(
-    { categoryId: selectedCategory, search: search || undefined },
-    { query: { queryKey: getListProductsQueryKey({ categoryId: selectedCategory, search: search || undefined }) } }
+    { categoryId: selectedCategory, search: search || undefined, limit: 100 },
+    { query: { queryKey: getListProductsQueryKey({ categoryId: selectedCategory, search: search || undefined, limit: 100 }) } }
   );
   const addToCart = useAddToCart();
 
