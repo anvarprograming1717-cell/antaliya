@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, MapPin, CreditCard, Truck, Package, Check, LocateFixed, Loader2, Tag, X } from "lucide-react";
-import { useGetCart, getGetCartQueryKey, useCreateOrder, getListOrdersQueryKey, useApplyPromoCode, useGetMe } from "@workspace/api-client-react";
+import { useGetCart, getGetCartQueryKey, useCreateOrder, getListOrdersQueryKey, useApplyPromoCode, useGetMe, useGetDeliverySettings, getGetDeliverySettingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,9 @@ export default function Checkout() {
 
   const { data: cartItems } = useGetCart({ query: { queryKey: getGetCartQueryKey() } });
   const { data: me } = useGetMe();
+  const { data: deliverySettings } = useGetDeliverySettings({ query: { queryKey: getGetDeliverySettingsQueryKey() } });
+  const DELIVERY_FEE_AMOUNT = deliverySettings?.deliveryFee ?? 15000;
+  const FREE_THRESHOLD = deliverySettings?.freeDeliveryThreshold ?? 300000;
   const createOrder = useCreateOrder();
   const applyPromoCode = useApplyPromoCode();
 
@@ -39,7 +42,7 @@ export default function Checkout() {
   }, [me]);
 
   const subtotal = cartItems?.reduce((sum, item) => sum + (item.product.price as number) * item.quantity, 0) || 0;
-  const deliveryFee = deliveryMethod === "delivery" && subtotal < 300000 ? 15000 : 0;
+  const deliveryFee = deliveryMethod === "delivery" && subtotal < FREE_THRESHOLD ? DELIVERY_FEE_AMOUNT : 0;
   const discount = promoApplied?.discountAmount || 0;
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
