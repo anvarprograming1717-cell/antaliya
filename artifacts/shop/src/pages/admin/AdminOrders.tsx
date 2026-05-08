@@ -2,11 +2,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, MapPin, Map, Navigation2, UserCheck, UserX, Trash2, MessageSquare, Tag } from "lucide-react";
 import {
-  useListOrders, getListOrdersQueryKey,
-  useUpdateOrderStatus, useAssignCourier, useDeleteOrder,
+  useUpdateOrderStatus, useAssignCourier,
   useListCouriers, getListCouriersQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -161,37 +160,47 @@ export default function AdminOrders() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const { data: orders } = useListOrders(
-    { status: filterStatus as any },
-    { query: { queryKey: getListOrdersQueryKey({ status: filterStatus as any }), refetchInterval: 15000 } }
-  );
+  const adminOrdersKey = ["admin-orders", filterStatus];
+  const { data: orders } = useQuery({
+    queryKey: adminOrdersKey,
+    queryFn: async () => {
+      const url = filterStatus ? `/api/admin/orders?status=${filterStatus}` : `/api/admin/orders`;
+      const res = await fetch(url);
+      return res.json();
+    },
+    refetchInterval: 15000,
+  });
   const { data: couriers = [] } = useListCouriers({ query: { queryKey: getListCouriersQueryKey() } });
   const updateStatus = useUpdateOrderStatus();
   const assignCourier = useAssignCourier();
-  const deleteOrder = useDeleteOrder();
+  const deleteOrder = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/orders/${id}`, { method: "DELETE" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      setDeleteId(null);
+      setExpandedId(null);
+    },
+  });
 
   const handleStatusChange = (id: number, status: string) => {
     updateStatus.mutate(
       { id, data: { status: status as any } },
-      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); } }
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-orders"] }); } }
     );
   };
 
   const handleAssignCourier = (orderId: number, courierId: number | null) => {
     assignCourier.mutate(
       { id: orderId, data: { courierId: courierId as any } },
-      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); } }
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-orders"] }); } }
     );
   };
 
   const handleDelete = (id: number) => {
-    deleteOrder.mutate({ id }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-        setDeleteId(null);
-        setExpandedId(null);
-      }
-    });
+    deleteOrder.mutate(id);
   };
 
   return (

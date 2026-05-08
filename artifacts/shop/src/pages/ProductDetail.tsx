@@ -1,9 +1,14 @@
-import { useState } from "react";
-import { useParams, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useParams, useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Heart, ShoppingCart, ChevronLeft, ChevronRight, Check } from "lucide-react";
-import { useGetProduct, getGetProductQueryKey, useAddToCart, useToggleLike, getGetCartQueryKey, getGetLikedQueryKey, getListProductsQueryKey } from "@workspace/api-client-react";
+import {
+  useGetProduct, getGetProductQueryKey,
+  useAddToCart, getGetCartQueryKey,
+  useListProducts, getListProductsQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { isProductLiked, toggleLikedProduct } from "@/lib/liked-local";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,11 +19,24 @@ export default function ProductDetail() {
   const [imageIndex, setImageIndex] = useState(0);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [, setLikedVersion] = useState(0);
   const queryClient = useQueryClient();
 
   const { data: product, isLoading } = useGetProduct(id, { query: { enabled: !!id, queryKey: getGetProductQueryKey(id) } });
   const addToCart = useAddToCart();
-  const toggleLike = useToggleLike();
+
+  const { data: relatedData } = useListProducts(
+    { categoryId: product?.categoryId ?? undefined },
+    { query: { enabled: !!product?.categoryId, queryKey: getListProductsQueryKey({ categoryId: product?.categoryId ?? undefined }) } }
+  );
+
+  const relatedProducts = relatedData?.products?.filter(p => p.id !== id).slice(0, 6) ?? [];
+
+  useEffect(() => {
+    const handler = () => setLikedVersion(v => v + 1);
+    window.addEventListener("liked-changed", handler);
+    return () => window.removeEventListener("liked-changed", handler);
+  }, []);
 
   if (isLoading) {
     return (
@@ -48,27 +66,26 @@ export default function ProductDetail() {
   };
 
   const handleLike = () => {
-    toggleLike.mutate(
-      { data: { productId: product.id } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetProductQueryKey(id) });
-          queryClient.invalidateQueries({ queryKey: getGetLikedQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-        },
-      }
-    );
+    if (!product) return;
+    toggleLikedProduct({
+      id: product.id,
+      name: product.name,
+      price: product.price as number,
+      oldPrice: product.oldPrice as number | null | undefined,
+      images: (product.images as string[]) ?? [],
+      unit: product.unit as string | undefined,
+      inStock: product.inStock as boolean | undefined,
+    });
   };
 
   return (
     <div className="min-h-screen pb-6">
       {/* Image Section */}
       <div className="relative bg-muted/30">
-        <div className="aspect-square overflow-hidden">
-          <img src={images[imageIndex]} alt={product.name} className="w-full h-full object-cover" />
+        <div className="aspect-square overflow-hidden flex items-center justify-center bg-muted/20">
+          <img src={images[imageIndex]} alt={product.name} className="w-full h-full object-contain" />
         </div>
 
-        {/* Back button */}
         <button
           onClick={() => setLocation("/")}
           className="absolute top-4 left-4 w-10 h-10 glass rounded-full flex items-center justify-center shadow-lg"
@@ -77,16 +94,14 @@ export default function ProductDetail() {
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        {/* Like button */}
         <button
           onClick={handleLike}
           className="absolute top-4 right-4 w-10 h-10 glass rounded-full flex items-center justify-center shadow-lg text-red-500"
           data-testid="button-like"
         >
-          <Heart className={`w-5 h-5 ${product.isLiked ? "fill-current" : ""}`} />
+          <Heart className={`w-5 h-5 ${isProductLiked(product.id) ? "fill-current" : ""}`} />
         </button>
 
-        {/* Image navigation */}
         {images.length > 1 && (
           <>
             <button
@@ -122,7 +137,6 @@ export default function ProductDetail() {
         animate={{ opacity: 1, y: 0 }}
         className="px-5 pt-5 space-y-4"
       >
-        {/* Category badge */}
         {product.categoryName && (
           <span className="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
             {product.categoryName}
@@ -131,7 +145,6 @@ export default function ProductDetail() {
 
         <h1 className="text-2xl font-bold" data-testid="text-product-name">{product.name}</h1>
 
-        {/* Price */}
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-2xl font-black text-primary">
             {(product.price as number).toLocaleString()} so'm
@@ -147,13 +160,11 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* Stock */}
         <div className={`flex items-center gap-2 text-sm font-medium ${product.inStock ? "text-green-600" : "text-destructive"}`}>
           <div className={`w-2 h-2 rounded-full ${product.inStock ? "bg-green-500" : "bg-destructive"}`} />
           {product.inStock ? "Mavjud" : "Tugagan"}
         </div>
 
-        {/* Description */}
         {product.description && (
           <div className="bg-muted/40 rounded-2xl p-4">
             <h3 className="font-semibold mb-2 text-sm">Tavsif</h3>
@@ -161,9 +172,9 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* Quantity + Add to Cart */}
-        <div className="flex gap-4 items-center pt-2">
-          <div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3">
+        {/* Miqdor + Savatga qo'shish */}
+        <div className="flex gap-3 items-center pt-2 pb-2">
+          <div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3 shrink-0">
             <button
               onClick={() => setQty(q => Math.max(1, q - 1))}
               className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
@@ -184,16 +195,48 @@ export default function ProductDetail() {
           <Button
             onClick={handleAddToCart}
             disabled={!product.inStock || addToCart.isPending}
-            className={`flex-1 h-14 rounded-2xl text-base font-semibold transition-all ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
+            className={`flex-1 h-14 rounded-2xl text-base font-semibold transition-all min-w-0 ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
             data-testid="button-add-to-cart"
           >
             {added ? (
-              <><Check className="w-5 h-5 mr-2" /> Qo'shildi!</>
+              <><Check className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Qo'shildi!</span></>
             ) : (
-              <><ShoppingCart className="w-5 h-5 mr-2" /> Savatchaga qo'shish</>
+              <><ShoppingCart className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Savatchaga qo'shish</span></>
             )}
           </Button>
         </div>
+
+        {/* Tavsiya etilgan mahsulotlar */}
+        {relatedProducts.length > 0 && (
+          <div className="pt-4">
+            <h3 className="font-bold text-lg mb-4">O'xshash mahsulotlar</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {relatedProducts.map((rp, i) => (
+                <Link key={rp.id} href={`/product/${rp.id}`}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    className="bg-card rounded-[1.5rem] p-3 shadow-sm border border-border/50"
+                    data-testid={`related-product-${rp.id}`}
+                  >
+                    <div className="aspect-square rounded-xl overflow-hidden mb-2 bg-muted/30 flex items-center justify-center">
+                      <img
+                        src={(rp.images as string[])[0] || "https://placehold.co/300"}
+                        alt={rp.name}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <h4 className="font-semibold text-xs line-clamp-2 leading-tight mb-1">{rp.name}</h4>
+                    <span className="font-bold text-primary text-xs">
+                      {(rp.price as number).toLocaleString()} so'm
+                    </span>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

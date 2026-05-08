@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { ShoppingCart, Trash2, ArrowRight, Package } from "lucide-react";
-import { useGetCart, getGetCartQueryKey, useUpdateCartItem, useRemoveFromCart } from "@workspace/api-client-react";
+import { useGetCart, getGetCartQueryKey, useUpdateCartItem, useRemoveFromCart, useGetDeliverySettings, getGetDeliverySettingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,9 @@ export default function Cart() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: cartItems, isLoading } = useGetCart({ query: { queryKey: getGetCartQueryKey() } });
+  const { data: deliverySettings } = useGetDeliverySettings({ query: { queryKey: getGetDeliverySettingsQueryKey() } });
+  const DELIVERY_FEE_AMOUNT = deliverySettings?.deliveryFee ?? 15000;
+  const FREE_THRESHOLD = deliverySettings?.freeDeliveryThreshold ?? 300000;
   const updateCart = useUpdateCartItem();
   const removeCart = useRemoveFromCart();
 
@@ -27,7 +30,7 @@ export default function Cart() {
   };
 
   const subtotal = cartItems?.reduce((sum, item) => sum + (item.product.price as number) * item.quantity, 0) || 0;
-  const DELIVERY_FEE = subtotal > 300000 ? 0 : 15000;
+  const DELIVERY_FEE = subtotal >= FREE_THRESHOLD ? 0 : DELIVERY_FEE_AMOUNT;
   const total = subtotal + DELIVERY_FEE;
 
   if (isLoading) {
@@ -114,7 +117,7 @@ export default function Cart() {
               </div>
               {DELIVERY_FEE > 0 && (
                 <p className="text-xs text-muted-foreground bg-muted/50 rounded-xl p-2">
-                  {(300000 - subtotal).toLocaleString()} so'm qo'shsangiz, yetkazib berish bepul!
+                  {(FREE_THRESHOLD - subtotal).toLocaleString()} so'm qo'shsangiz, yetkazib berish bepul!
                 </p>
               )}
               <div className="border-t border-border pt-3 flex justify-between font-bold text-base">

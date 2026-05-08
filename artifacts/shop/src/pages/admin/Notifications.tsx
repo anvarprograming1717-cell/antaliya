@@ -11,6 +11,7 @@ const NKEY = ["/api/notifications"];
 export default function Notifications() {
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const qc = useQueryClient();
   const sendNotification = useSendNotification();
   const { data: notifications = [] } = useListNotifications({ query: { queryKey: NKEY, refetchInterval: 30000 } });
@@ -31,6 +32,15 @@ export default function Notifications() {
     );
   };
 
+  const handleDelete = async (id: number) => {
+    setDeletingId(id);
+    try {
+      await fetch(`/api/notifications/${id}`, { method: "DELETE" });
+      qc.invalidateQueries({ queryKey: NKEY });
+    } catch {}
+    setDeletingId(null);
+  };
+
   return (
     <div className="space-y-5 max-w-lg">
       <div className="flex items-center gap-3">
@@ -49,7 +59,7 @@ export default function Notifications() {
           <h3 className="font-semibold mb-1">Barcha foydalanuvchilarga xabar</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Bu xabar ilovada barcha foydalanuvchilarga ko'rsatiladi.
-            {" "}Telegram bot ulangan bo'lsa, Telegram'da ham yuboriladi.
+            {" "}Telegram bot ulangan bo'lsa, Telegram'da ham <b>Assalomu aleykum!</b> bilan yuboriladi.
           </p>
 
           <Textarea
@@ -62,7 +72,8 @@ export default function Notifications() {
 
           {message && (
             <div className="mt-3 p-3 bg-muted/50 rounded-xl">
-              <p className="text-xs text-muted-foreground mb-1">Ko'rinishi:</p>
+              <p className="text-xs text-muted-foreground mb-1">Ko'rinishi (Telegram):</p>
+              <p className="text-sm font-semibold mb-1">🔔 Assalomu aleykum!</p>
               <p className="text-sm whitespace-pre-wrap">{message}</p>
             </div>
           )}
@@ -82,10 +93,12 @@ export default function Notifications() {
         </Button>
       </motion.div>
 
-      {/* Sent Notifications History */}
-      {notifications.length > 0 && (
+      {/* Yuborilgan xabarnomalar tarixi */}
+      {(notifications as any[]).length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">Yuborilgan xabarnomalar</h3>
+          <h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+            Yuborilgan xabarnomalar
+          </h3>
           {(notifications as any[]).map((n: any, i: number) => (
             <motion.div
               key={n.id}
@@ -94,8 +107,26 @@ export default function Notifications() {
               transition={{ delay: i * 0.04 }}
               className="bg-card rounded-xl border border-border/50 p-4"
             >
-              <p className="text-sm whitespace-pre-wrap">{n.message}</p>
-              <p className="text-xs text-muted-foreground mt-2">{new Date(n.createdAt).toLocaleString("uz-UZ")}</p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm whitespace-pre-wrap">{n.message}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {new Date(n.createdAt).toLocaleString("uz-UZ")}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDelete(n.id)}
+                  disabled={deletingId === n.id}
+                  className="w-8 h-8 rounded-lg bg-destructive/10 hover:bg-destructive/20 flex items-center justify-center text-destructive transition-colors flex-none disabled:opacity-50"
+                  data-testid={`button-delete-notification-${n.id}`}
+                >
+                  {deletingId === n.id ? (
+                    <div className="w-3.5 h-3.5 border-2 border-destructive/50 border-t-destructive rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             </motion.div>
           ))}
         </div>

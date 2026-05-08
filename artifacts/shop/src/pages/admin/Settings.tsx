@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon } from "lucide-react";
+import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon, Send, Plus, Trash2, Calendar } from "lucide-react";
 import {
   useGetSupportContact, getGetSupportContactQueryKey, useUpdateSupportContact,
   useUpdateAdminPassword, useGetSiteSettings, getGetSiteSettingsQueryKey, useUpdateSiteSettings,
@@ -24,6 +24,18 @@ export default function Settings() {
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [siteSaved, setSiteSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [tgAdminIds, setTgAdminIds] = useState<number[]>([]);
+  const [newTgId, setNewTgId] = useState("");
+  const [tgSaved, setTgSaved] = useState(false);
+  const [tgLoading, setTgLoading] = useState(false);
+  const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [workDaysSaved, setWorkDaysSaved] = useState(false);
+  const [workDaysLoading, setWorkDaysLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/telegram-admins").then(r => r.json()).then(d => setTgAdminIds(d.adminIds || [])).catch(() => {});
+    fetch("/api/admin/work-schedule").then(r => r.json()).then(d => setWorkDays(d.workDays || [1, 2, 3, 4, 5, 6])).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (contact) {
@@ -86,6 +98,44 @@ export default function Settings() {
         },
       }
     );
+  };
+
+  const handleAddTgAdmin = () => {
+    const id = parseInt(newTgId.trim());
+    if (isNaN(id) || id <= 0) return;
+    if (tgAdminIds.includes(id)) { setNewTgId(""); return; }
+    setTgAdminIds(prev => [...prev, id]);
+    setNewTgId("");
+  };
+
+  const handleRemoveTgAdmin = (id: number) => setTgAdminIds(prev => prev.filter(a => a !== id));
+
+  const handleSaveWorkDays = async () => {
+    setWorkDaysLoading(true);
+    try {
+      await fetch("/api/admin/work-schedule", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workDays }),
+      });
+      setWorkDaysSaved(true);
+      setTimeout(() => setWorkDaysSaved(false), 2000);
+    } catch {}
+    setWorkDaysLoading(false);
+  };
+
+  const handleSaveTgAdmins = async () => {
+    setTgLoading(true);
+    try {
+      await fetch("/api/admin/telegram-admins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminIds: tgAdminIds }),
+      });
+      setTgSaved(true);
+      setTimeout(() => setTgSaved(false), 2000);
+    } catch {}
+    setTgLoading(false);
   };
 
   return (
@@ -233,6 +283,106 @@ export default function Settings() {
           data-testid="button-save-password"
         >
           {passwordSaved ? <><Check className="w-4 h-4 mr-2" /> O'zgartirildi!</> : "O'zgartirish"}
+        </Button>
+      </motion.div>
+
+      {/* Telegram Admin IDs */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Send className="w-5 h-5 text-primary" />
+          <h3 className="font-bold">Telegram adminlar</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">Yangi buyurtmalar haqida xabar oladigan Telegram ID lar. ID ni bilish uchun botga /start yuboring.</p>
+
+        {/* Existing IDs */}
+        <div className="space-y-2">
+          {tgAdminIds.map(id => (
+            <div key={id} className="flex items-center justify-between bg-muted/40 rounded-xl px-3 py-2">
+              <span className="font-mono text-sm">{id}</span>
+              <button onClick={() => handleRemoveTgAdmin(id)} className="text-destructive hover:text-destructive/80 p-1">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {tgAdminIds.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">Admin qo'shilmagan</p>
+          )}
+        </div>
+
+        {/* Add new ID */}
+        <div className="flex gap-2">
+          <Input
+            value={newTgId}
+            onChange={e => setNewTgId(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleAddTgAdmin()}
+            placeholder="Telegram ID (masalan: 214840221)"
+            className="rounded-xl font-mono"
+            type="number"
+          />
+          <Button onClick={handleAddTgAdmin} variant="outline" className="rounded-xl shrink-0">
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <Button
+          onClick={handleSaveTgAdmins}
+          disabled={tgLoading}
+          className={`w-full rounded-xl ${tgSaved ? "bg-green-600 hover:bg-green-600" : ""}`}
+        >
+          {tgSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}
+        </Button>
+      </motion.div>
+
+      {/* Ish kunlari / Dam olish kunlari */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-primary" />
+          <h3 className="font-bold">Ish kunlari</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Ish kunlarini belgilang. Dam olish kunlarida foydalanuvchilar keyingi ish kuni haqida xabar ko'radi.
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { day: 1, label: "Dushanba" },
+            { day: 2, label: "Seshanba" },
+            { day: 3, label: "Chorshanba" },
+            { day: 4, label: "Payshanba" },
+            { day: 5, label: "Juma" },
+            { day: 6, label: "Shanba" },
+            { day: 0, label: "Yakshanba" },
+          ].map(({ day, label }) => {
+            const active = workDays.includes(day);
+            return (
+              <button
+                key={day}
+                onClick={() => setWorkDays(prev =>
+                  active ? prev.filter(d => d !== day) : [...prev, day]
+                )}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-muted/30 text-muted-foreground border-border/50"
+                }`}
+                data-testid={`button-workday-${day}`}
+              >
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-none ${active ? "bg-white border-white" : "border-muted-foreground"}`}>
+                  {active && <Check className="w-2.5 h-2.5 text-primary" />}
+                </div>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <Button
+          onClick={handleSaveWorkDays}
+          disabled={workDaysLoading}
+          className={`w-full rounded-xl ${workDaysSaved ? "bg-green-600 hover:bg-green-600" : ""}`}
+          data-testid="button-save-work-days"
+        >
+          {workDaysSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}
         </Button>
       </motion.div>
     </div>

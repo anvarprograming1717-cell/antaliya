@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import { getCustomerSession, getAdminSession } from "@/lib/auth";
 import { useEffect } from "react";
 import { LanguageProvider } from "@/lib/i18n";
+import React from "react";
 
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -35,7 +36,7 @@ import Settings from "@/pages/admin/Settings";
 import AdminCouriers from "@/pages/admin/AdminCouriers";
 import AdminPromoCodes from "@/pages/admin/AdminPromoCodes";
 
-// Patch globalThis.fetch to inject auth headers on every /api request
+// Inject auth headers on every /api request
 const _originalFetch = globalThis.fetch.bind(globalThis);
 globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === "string" ? input : (input instanceof Request ? input.url : input.toString());
@@ -53,35 +54,17 @@ globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
 function CustomerRoute({ component: Component }: { component: React.ComponentType }) {
   const [, setLocation] = useLocation();
   const session = getCustomerSession();
-
-  useEffect(() => {
-    if (!session) setLocation("/login");
-  }, []);
-
+  useEffect(() => { if (!session) setLocation("/login"); }, []);
   if (!session) return null;
-
-  return (
-    <CustomerLayout>
-      <Component />
-    </CustomerLayout>
-  );
+  return <CustomerLayout><Component /></CustomerLayout>;
 }
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const [, setLocation] = useLocation();
   const isAdmin = getAdminSession();
-
-  useEffect(() => {
-    if (!isAdmin) setLocation("/admin/login");
-  }, []);
-
+  useEffect(() => { if (!isAdmin) setLocation("/admin/login"); }, []);
   if (!isAdmin) return null;
-
-  return (
-    <AdminLayout>
-      <Component />
-    </AdminLayout>
-  );
+  return <AdminLayout><Component /></AdminLayout>;
 }
 
 function AdminRedirect() {
@@ -91,21 +74,15 @@ function AdminRedirect() {
 }
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 30,
-      retry: 1,
-    },
-  },
+  defaultOptions: { queries: { staleTime: 1000 * 30, retry: 1 } },
 });
 
-function Router() {
+function AppRouter() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/courier" component={CourierApp} />
-
       <Route path="/" component={() => <CustomerRoute component={Home} />} />
       <Route path="/product/:id" component={() => <CustomerRoute component={ProductDetail} />} />
       <Route path="/cart" component={() => <CustomerRoute component={Cart} />} />
@@ -114,7 +91,6 @@ function Router() {
       <Route path="/liked" component={() => <CustomerRoute component={Liked} />} />
       <Route path="/chat" component={() => <CustomerRoute component={Chat} />} />
       <Route path="/profile" component={() => <CustomerRoute component={Profile} />} />
-
       <Route path="/admin" component={AdminRedirect} />
       <Route path="/admin/dashboard" component={() => <AdminRoute component={Dashboard} />} />
       <Route path="/admin/products" component={() => <AdminRoute component={Products} />} />
@@ -128,19 +104,18 @@ function Router() {
       <Route path="/admin/settings" component={() => <AdminRoute component={Settings} />} />
       <Route path="/admin/couriers" component={() => <AdminRoute component={AdminCouriers} />} />
       <Route path="/admin/promo-codes" component={() => <AdminRoute component={AdminPromoCodes} />} />
-
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <LanguageProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
+          <WouterRouter>
+            <AppRouter />
           </WouterRouter>
           <Toaster />
         </TooltipProvider>
@@ -148,5 +123,3 @@ function App() {
     </LanguageProvider>
   );
 }
-
-export default App;

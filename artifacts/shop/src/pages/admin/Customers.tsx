@@ -1,10 +1,26 @@
-import { motion } from "framer-motion";
-import { Users, Phone } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Users, Phone, Trash2, AlertTriangle } from "lucide-react";
 import { useListCustomers, getListCustomersQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 export default function Customers() {
+  const queryClient = useQueryClient();
   const { data: customers, isLoading } = useListCustomers({ query: { queryKey: getListCustomersQueryKey() } });
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+
+  const handleDelete = async (id: number) => {
+    setDeleting(id);
+    try {
+      await fetch(`/api/customers/${id}`, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: getListCustomersQueryKey() });
+    } catch {}
+    setDeleting(null);
+    setConfirmId(null);
+  };
 
   return (
     <div className="space-y-5">
@@ -24,6 +40,7 @@ export default function Customers() {
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ism</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Telefon</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ro'yxat sanasi</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground"></th>
               </tr>
             </thead>
             <tbody>
@@ -53,6 +70,39 @@ export default function Customers() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     {new Date(c.createdAt).toLocaleDateString("uz-UZ")}
+                  </td>
+                  <td className="px-4 py-3">
+                    {confirmId === c.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-destructive font-medium">O'chirilsinmi?</span>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 px-2 text-xs"
+                          disabled={deleting === c.id}
+                          onClick={() => handleDelete(c.id)}
+                          data-testid={`button-confirm-delete-${c.id}`}
+                        >
+                          Ha
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setConfirmId(null)}
+                        >
+                          Yo'q
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmId(c.id)}
+                        className="w-8 h-8 rounded-lg bg-destructive/10 hover:bg-destructive/20 flex items-center justify-center text-destructive transition-colors"
+                        data-testid={`button-delete-customer-${c.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </td>
                 </motion.tr>
               ))}

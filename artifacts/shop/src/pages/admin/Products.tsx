@@ -27,16 +27,24 @@ export default function Products() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [search, setSearch] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>();
 
-  const { data: productsData, isLoading } = useListProducts({ search: search || undefined }, { query: { queryKey: getListProductsQueryKey({ search: search || undefined }) } });
+  const { data: productsData, isLoading } = useListProducts(
+    { search: search || undefined, categoryId: filterCategoryId, limit: 200 },
+    { query: { queryKey: getListProductsQueryKey({ search: search || undefined, categoryId: filterCategoryId, limit: 200 }) } }
+  );
   const { data: categories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/products"] });
 
-  const openCreate = () => { setEditId(null); setForm(emptyForm); setShowModal(true); };
+  const openCreate = () => {
+    setEditId(null);
+    setForm({ ...emptyForm, categoryId: filterCategoryId ? String(filterCategoryId) : "" });
+    setShowModal(true);
+  };
   const openEdit = (p: any) => {
     setEditId(p.id);
     setForm({
@@ -52,11 +60,15 @@ export default function Products() {
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!form.name.trim()) { alert("Mahsulot nomini kiriting!"); return; }
+    const priceNum = parseFloat(form.price);
+    if (!form.price || isNaN(priceNum) || priceNum <= 0) { alert("To'g'ri narx kiriting!"); return; }
+
     const data = {
-      name: form.name,
-      description: form.description || undefined,
-      price: parseFloat(form.price),
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      price: priceNum,
       oldPrice: form.oldPrice ? parseFloat(form.oldPrice) : undefined,
       images: form.images.split("\n").map(s => s.trim()).filter(Boolean),
       categoryId: form.categoryId ? parseInt(form.categoryId) : undefined,
@@ -65,9 +77,21 @@ export default function Products() {
     };
 
     if (editId) {
-      updateProduct.mutate({ id: editId, data }, { onSuccess: () => { invalidate(); setShowModal(false); } });
+      updateProduct.mutate(
+        { id: editId, data },
+        {
+          onSuccess: () => { invalidate(); setShowModal(false); },
+          onError: (err: any) => alert("Xato: " + (err?.message || JSON.stringify(err))),
+        }
+      );
     } else {
-      createProduct.mutate({ data: data as any }, { onSuccess: () => { invalidate(); setShowModal(false); } });
+      createProduct.mutate(
+        { data: data as any },
+        {
+          onSuccess: () => { invalidate(); setShowModal(false); },
+          onError: (err: any) => alert("Xato: " + (err?.message || JSON.stringify(err))),
+        }
+      );
     }
   };
 
@@ -85,13 +109,24 @@ export default function Products() {
         </Button>
       </div>
 
-      <Input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Mahsulot qidirish..."
-        className="rounded-xl max-w-xs"
-        data-testid="input-search"
-      />
+      <div className="flex gap-3 flex-wrap">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Mahsulot qidirish..."
+          className="rounded-xl max-w-xs"
+          data-testid="input-search"
+        />
+        <select
+          value={filterCategoryId ?? ""}
+          onChange={e => setFilterCategoryId(e.target.value ? parseInt(e.target.value) : undefined)}
+          className="h-10 rounded-xl border border-border bg-background px-3 text-sm min-w-[160px]"
+          data-testid="select-filter-category"
+        >
+          <option value="">Barcha kategoriyalar</option>
+          {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">{Array(5).fill(0).map((_, i) => <Skeleton key={i} className="w-full h-16 rounded-xl" />)}</div>
