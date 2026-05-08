@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell } from "lucide-react";
+import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff } from "lucide-react";
 import {
   useGetMe, getGetMeQueryKey, useUpdateMe, useLogoutCustomer,
   useGetSupportContact, getGetSupportContactQueryKey,
@@ -27,6 +27,9 @@ export default function Profile() {
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
   const [showSupport, setShowSupport] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    localStorage.getItem("notificationsDisabled") !== "true"
+  );
 
   const { data: customer, isLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const { data: supportContact } = useGetSupportContact({ query: { queryKey: getGetSupportContactQueryKey() } });
@@ -238,55 +241,79 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications toggle + list */}
         <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
-          <button onClick={handleOpenNotifications} className="w-full flex items-center justify-between px-4 py-4" data-testid="button-notifications">
+          {/* Toggle row */}
+          <div className="flex items-center justify-between px-4 py-4 border-b border-border/30">
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <Bell className="w-5 h-5 text-primary" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
+              {notificationsEnabled
+                ? <Bell className="w-5 h-5 text-primary" />
+                : <BellOff className="w-5 h-5 text-muted-foreground" />}
+              <div>
+                <p className="font-medium">Bildirishnomalar</p>
+                <p className="text-xs text-muted-foreground">{notificationsEnabled ? "Yoqilgan" : "O'chirilgan"}</p>
               </div>
-              <span className="font-medium">Bildirishnomalar</span>
-              {unreadCount > 0 && (
-                <span className="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">
-                  {unreadCount} yangi
-                </span>
-              )}
             </div>
-            <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${showNotifications ? "rotate-90" : ""}`} />
-          </button>
-          <AnimatePresence>
-            {showNotifications && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="border-t border-border/50 overflow-hidden"
-              >
-                {(notifications as any[]).length === 0 ? (
-                  <div className="px-4 py-5 text-center text-sm text-muted-foreground">
-                    Hozircha bildirishnoma yo'q
+            <button
+              onClick={() => {
+                const next = !notificationsEnabled;
+                setNotificationsEnabled(next);
+                localStorage.setItem("notificationsDisabled", next ? "false" : "true");
+              }}
+              data-testid="button-notifications-toggle"
+              className={`w-12 h-6 rounded-full flex items-center transition-all ${notificationsEnabled ? "bg-primary" : "bg-muted"}`}
+            >
+              <div className={`w-5 h-5 rounded-full bg-white shadow transition-all mx-0.5 ${notificationsEnabled ? "ml-6" : ""}`} />
+            </button>
+          </div>
+
+          {/* Show list only if notifications enabled */}
+          {notificationsEnabled && (
+            <>
+              <button onClick={handleOpenNotifications} className="w-full flex items-center justify-between px-4 py-3" data-testid="button-notifications">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Bell className="w-4 h-4 text-primary" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[9px] text-white font-bold">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div className="divide-y divide-border/30">
-                    {(notifications as any[]).slice(0, 10).map((n: any) => {
-                      const isUnread = !lastReadAt || new Date(n.createdAt) > new Date(lastReadAt);
-                      return (
-                        <div key={n.id} className={`px-4 py-3 ${isUnread ? "bg-primary/5" : ""}`}>
-                          <p className="text-sm whitespace-pre-wrap">{n.message}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{new Date(n.createdAt).toLocaleString("uz-UZ")}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {unreadCount > 0 ? `${unreadCount} ta yangi xabar` : "Xabarnomalar tarixi"}
+                  </span>
+                </div>
+                <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showNotifications ? "rotate-90" : ""}`} />
+              </button>
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="border-t border-border/50 overflow-hidden"
+                  >
+                    {(notifications as any[]).length === 0 ? (
+                      <div className="px-4 py-5 text-center text-sm text-muted-foreground">Hozircha bildirishnoma yo'q</div>
+                    ) : (
+                      <div className="divide-y divide-border/30">
+                        {(notifications as any[]).slice(0, 10).map((n: any) => {
+                          const isUnread = !lastReadAt || new Date(n.createdAt) > new Date(lastReadAt);
+                          return (
+                            <div key={n.id} className={`px-4 py-3 ${isUnread ? "bg-primary/5" : ""}`}>
+                              <p className="text-sm whitespace-pre-wrap">{n.message}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{new Date(n.createdAt).toLocaleString("uz-UZ")}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </motion.div>
                 )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </AnimatePresence>
+            </>
+          )}
         </div>
 
         {/* Support */}

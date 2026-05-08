@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Truck, Package, Check, LocateFixed, Loader2, Tag, X, Map } from "lucide-react";
+import { ArrowLeft, MapPin, Truck, Package, Check, LocateFixed, Loader2, Tag, X, Map, AlertTriangle } from "lucide-react";
 import { useGetCart, getGetCartQueryKey, useCreateOrder, getListOrdersQueryKey, useApplyPromoCode, useGetMe, useGetDeliverySettings, getGetDeliverySettingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,15 @@ import { getCustomerSession } from "@/lib/auth";
 
 const MapPicker = lazy(() => import("@/components/MapPicker"));
 
-interface Suggestion {
-  display_name: string;
-  lat: string;
-  lon: string;
+interface Suggestion { display_name: string; lat: string; lon: string; }
+interface DeliveryZone { lat: number; lng: number; radiusKm: number; }
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export default function Checkout() {
@@ -31,6 +36,8 @@ export default function Checkout() {
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [zoneError, setZoneError] = useState("");
+  const [zone, setZone] = useState<DeliveryZone | null>(null);
 
   // Address suggestions
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -57,16 +64,34 @@ export default function Checkout() {
     if (serverAddr && !address) setAddress(serverAddr);
   }, [me]);
 
+  // Fetch delivery zone once
+  useEffect(() => {
+    fetch("/api/admin/delivery-zone").then(r => r.json()).then(d => {
+      if (d.lat && d.radiusKm) setZone({ lat: d.lat, lng: d.lng, radiusKm: d.radiusKm });
+    }).catch(() => {});
+  }, []);
+
+  // Validate coordinates against zone whenever they change
+  useEffect(() => {
+    if (!zone || !addressLat || !addressLng || deliveryMethod !== "delivery") { setZoneError(""); return; }
+    const dist = haversineKm(addressLat, addressLng, zone.lat, zone.lng);
+    if (dist > zone.radiusKm) {
+      setZoneError(`Tanlagan manzil yetkazib berish zonasidan tashqarida (${dist.toFixed(1)} km, zona: ${zone.radiusKm} km). Iltimos boshqa manzil tanlang.`);
+    } else {
+      setZoneError("");
+    }
+  }, [addressLat, addressLng, zone, deliveryMethod]);
+
   const subtotal = cartItems?.reduce((sum, item) => sum + (item.product.price as number) * item.quantity, 0) || 0;
   const deliveryFee = deliveryMethod === "delivery" && subtotal < FREE_THRESHOLD ? DELIVERY_FEE_AMOUNT : 0;
   const discount = promoApplied?.discountAmount || 0;
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
-  // Address input change with suggestions
   const handleAddressChange = (val: string) => {
     setAddress(val);
     setAddressLat(null);
     setAddressLng(null);
+    setZoneError("");
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!val.trim() || val.length < 3) { setSuggestions([]); setShowSuggestions(false); return; }
     debounceRef.current = setTimeout(async () => {
@@ -86,7 +111,7 @@ export default function Checkout() {
 
   const handleLocate = () => {
     if (!navigator.geolocation) { setLocateError("Brauzeringiz joylashuvni qo'llab-quvvatlamaydi"); return; }
-    setLocating(true); setLocateError("");
+    setLocating(true); setLocateError(""); setZoneError("");
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -121,19 +146,19 @@ export default function Checkout() {
     applyPromoCode.mutate(
       { data: { code, subtotal } },
       {
-        onSuccess: (data: any) => {
-          setPromoApplied({ code: data.promoCode, discountAmount: data.discountAmount });
-          setPromoLoading(false);
-        },
-        onError: (e: any) => {
-          setPromoError(e?.response?.data?.error || "Promokod noto'g'ri yoki muddati o'tgan");
-          setPromoLoading(false);
-        },
+        onSuccess: (data: any) => { setPromoApplied({ code: data.promoCode, discountAmount: data.discountAmount }); setPromoLoading(false); },
+        onError: (e: any) => { setPromoError(e?.response?.data?.error || "Promokod noto'g'ri yoki muddati o'tgan"); setPromoLoading(false); },
       }
     );
   };
 
+  const isOutsideZone = !!zoneError;
+  const canOrder = deliveryMethod === "delivery"
+    ? !!(address.trim() && !isOutsideZone)
+    : true;
+
   const handleOrder = () => {
+    if (!canOrder) return;
     createOrder.mutate(
       {
         data: {
@@ -159,7 +184,6 @@ export default function Checkout() {
 
   return (
     <>
-      {/* Map Picker Modal */}
       {showMapPicker && (
         <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
           <MapPicker
@@ -202,11 +226,7 @@ export default function Checkout() {
 
           {/* Address */}
           {deliveryMethod === "delivery" && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="bg-card rounded-2xl p-4 border border-border/50 space-y-3"
-            >
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="bg-card rounded-2xl p-4 border border-border/50 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-bold">Manzil</h3>
                 <div className="flex items-center gap-2">
@@ -230,7 +250,13 @@ export default function Checkout() {
                 </div>
               </div>
 
-              {/* Address input with suggestions */}
+              {zone && (
+                <div className="flex items-center gap-2 text-xs text-primary bg-primary/5 rounded-xl px-3 py-2">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  <span>Yetkazib berish zonasi: {zone.radiusKm} km radius. Xaritadan tanlab buyurtma bering.</span>
+                </div>
+              )}
+
               <div className="relative">
                 <div className="relative">
                   <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
@@ -244,12 +270,9 @@ export default function Checkout() {
                     rows={2}
                     data-testid="input-address"
                   />
-                  {suggestLoading && (
-                    <Loader2 className="absolute right-3 top-3 w-4 h-4 animate-spin text-muted-foreground" />
-                  )}
+                  {suggestLoading && <Loader2 className="absolute right-3 top-3 w-4 h-4 animate-spin text-muted-foreground" />}
                 </div>
 
-                {/* Suggestions dropdown */}
                 {showSuggestions && suggestions.length > 0 && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-background border border-border rounded-2xl shadow-2xl overflow-hidden z-50">
                     {suggestions.map((s, i) => (
@@ -271,12 +294,22 @@ export default function Checkout() {
                 )}
               </div>
 
-              {/* Selected from map indicator */}
-              {addressLat && addressLng && (
+              {addressLat && addressLng && !zoneError && (
                 <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl px-3 py-2">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
-                  <span>Koordinatalar: {addressLat.toFixed(5)}, {addressLng.toFixed(5)}</span>
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  <span>Manzil yetkazib berish zonasida ✓</span>
                 </div>
+              )}
+
+              {zoneError && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-start gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl px-3 py-2.5 border border-red-200 dark:border-red-800"
+                >
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{zoneError}</span>
+                </motion.div>
               )}
 
               {locateError && <p className="text-xs text-destructive">{locateError}</p>}
@@ -380,13 +413,24 @@ export default function Checkout() {
             </div>
           </div>
 
+          {isOutsideZone && (
+            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+              <p className="text-sm text-red-600 dark:text-red-400 font-medium">Manzil yetkazib berish zonasidan tashqarida. Buyurtma bera olmaysiz.</p>
+            </div>
+          )}
+
           <Button
             onClick={handleOrder}
-            disabled={createOrder.isPending || (deliveryMethod === "delivery" && !address.trim())}
+            disabled={createOrder.isPending || !canOrder}
             className="w-full h-14 rounded-2xl text-base font-semibold"
             data-testid="button-place-order"
           >
-            {createOrder.isPending ? "Buyurtma berilmoqda..." : `Buyurtma berish — ${total.toLocaleString()} so'm`}
+            {createOrder.isPending
+              ? "Buyurtma berilmoqda..."
+              : isOutsideZone
+              ? "Zona tashqarisida — buyurtma bo'lmaydi"
+              : `Buyurtma berish — ${total.toLocaleString()} so'm`}
           </Button>
         </div>
       </div>
