@@ -87,4 +87,38 @@ router.patch("/admin/site-settings", async (req, res): Promise<void> => {
   res.json({ siteName: map.siteName ?? null, logoUrl: map.logoUrl ?? null });
 });
 
+// Chef password
+router.patch("/admin/chef-password", async (req, res): Promise<void> => {
+  const { password } = req.body;
+  if (!password || password.length < 4) { res.status(400).json({ error: "Password too short" }); return; }
+  await upsertSetting("chefPassword", password);
+  res.json({ success: true });
+});
+
+// Delivery zone
+router.get("/admin/delivery-zone", async (req, res): Promise<void> => {
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  if (!map.deliveryZoneLat) { res.json({ lat: null, lng: null, radiusKm: 5 }); return; }
+  res.json({ lat: parseFloat(map.deliveryZoneLat), lng: parseFloat(map.deliveryZoneLng), radiusKm: parseFloat(map.deliveryZoneRadius ?? "5") });
+});
+
+router.patch("/admin/delivery-zone", async (req, res): Promise<void> => {
+  const { lat, lng, radiusKm } = req.body;
+  if (lat === undefined || lng === undefined) { res.status(400).json({ error: "lat and lng required" }); return; }
+  await upsertSetting("deliveryZoneLat", String(lat));
+  await upsertSetting("deliveryZoneLng", String(lng));
+  await upsertSetting("deliveryZoneRadius", String(radiusKm ?? 5));
+  res.json({ lat, lng, radiusKm: radiusKm ?? 5 });
+});
+
+router.get("/delivery-zone", async (req, res): Promise<void> => {
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  if (!map.deliveryZoneLat) { res.json({ lat: null, lng: null, radiusKm: null }); return; }
+  res.json({ lat: parseFloat(map.deliveryZoneLat), lng: parseFloat(map.deliveryZoneLng), radiusKm: parseFloat(map.deliveryZoneRadius ?? "5") });
+});
+
 export default router;

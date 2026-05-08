@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Plus, Edit2, Trash2, X, Check, Package } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Package, Upload, Link as LinkIcon, Star } from "lucide-react";
 import { useListProducts, getListProductsQueryKey, useCreateProduct, useUpdateProduct, useDeleteProduct, useListCategories, getListCategoriesQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+
+type UnitType = "dona" | "kg" | "pachka" | "katta" | "kichik" | "o'rta";
 
 type ProductForm = {
   name: string;
@@ -16,10 +18,23 @@ type ProductForm = {
   images: string;
   categoryId: string;
   inStock: boolean;
-  unit: "dona" | "kg" | "pachka";
+  unit: UnitType;
+  isFeatured: boolean;
 };
 
-const emptyForm: ProductForm = { name: "", description: "", price: "", oldPrice: "", images: "", categoryId: "", inStock: true, unit: "dona" };
+const UNITS: Array<{ value: UnitType; label: string }> = [
+  { value: "dona", label: "dona" },
+  { value: "kg", label: "kg" },
+  { value: "pachka", label: "pachka" },
+  { value: "katta", label: "katta" },
+  { value: "o'rta", label: "o'rta" },
+  { value: "kichik", label: "kichik" },
+];
+
+const emptyForm: ProductForm = {
+  name: "", description: "", price: "", oldPrice: "", images: "",
+  categoryId: "", inStock: true, unit: "dona", isFeatured: false,
+};
 
 export default function Products() {
   const queryClient = useQueryClient();
@@ -28,6 +43,9 @@ export default function Products() {
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [search, setSearch] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>();
+  const [uploading, setUploading] = useState(false);
+  const [imageMode, setImageMode] = useState<"url" | "upload">("url");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: productsData, isLoading } = useListProducts(
     { search: search || undefined, categoryId: filterCategoryId, limit: 200 },
@@ -43,8 +61,10 @@ export default function Products() {
   const openCreate = () => {
     setEditId(null);
     setForm({ ...emptyForm, categoryId: filterCategoryId ? String(filterCategoryId) : "" });
+    setImageMode("url");
     setShowModal(true);
   };
+
   const openEdit = (p: any) => {
     setEditId(p.id);
     setForm({
@@ -55,9 +75,30 @@ export default function Products() {
       images: (p.images || []).join("\n"),
       categoryId: p.categoryId ? String(p.categoryId) : "",
       inStock: p.inStock,
-      unit: (p.unit as any) || "dona",
+      unit: (p.unit as UnitType) || "dona",
+      isFeatured: p.isFeatured || false,
     });
+    setImageMode("url");
     setShowModal(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!r.ok) throw new Error("Upload failed");
+      const { url } = await r.json();
+      setForm(f => ({ ...f, images: f.images ? f.images + "\n" + url : url }));
+    } catch {
+      alert("Rasmni yuklashda xato bo'ldi");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   const handleSave = async () => {
@@ -74,6 +115,7 @@ export default function Products() {
       categoryId: form.categoryId ? parseInt(form.categoryId) : undefined,
       inStock: form.inStock,
       unit: form.unit,
+      isFeatured: form.isFeatured,
     };
 
     if (editId) {
@@ -99,6 +141,9 @@ export default function Products() {
     if (!confirm("Mahsulotni o'chirishni tasdiqlaysizmi?")) return;
     deleteProduct.mutate({ id }, { onSuccess: invalidate });
   };
+
+  const products = (productsData as any)?.products ?? productsData ?? [];
+  const imagesList = form.images.split("\n").map(s => s.trim()).filter(Boolean);
 
   return (
     <div className="space-y-5">
@@ -142,7 +187,7 @@ export default function Products() {
               </tr>
             </thead>
             <tbody>
-              {productsData?.products.map((p) => (
+              {products.map((p: any) => (
                 <tr key={p.id} className="border-b border-border/50 hover:bg-muted/20" data-testid={`product-row-${p.id}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -154,8 +199,11 @@ export default function Products() {
                         </div>
                       )}
                       <div>
-                        <p className="font-medium line-clamp-1">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.categoryName || "Kategoriyasiz"}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium line-clamp-1">{p.name}</p>
+                          {p.isFeatured && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 flex-none" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{p.categoryName || "Kategoriyasiz"} · {p.unit}</p>
                       </div>
                     </div>
                   </td>
@@ -185,15 +233,14 @@ export default function Products() {
         </div>
       )}
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-3xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            className="bg-card rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
-            <div className="sticky top-0 bg-card rounded-t-3xl flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="sticky top-0 bg-card rounded-t-3xl flex items-center justify-between px-6 py-4 border-b border-border z-10">
               <h3 className="font-bold text-lg">{editId ? "Tahrirlash" : "Yangi mahsulot"}</h3>
               <button onClick={() => setShowModal(false)} data-testid="button-close-modal">
                 <X className="w-6 h-6" />
@@ -202,26 +249,88 @@ export default function Products() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="text-sm font-medium block mb-1">Nomi *</label>
-                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="rounded-xl" data-testid="input-product-name" />
+                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="rounded-xl" placeholder="Mahsulot nomi" data-testid="input-product-name" />
               </div>
               <div>
                 <label className="text-sm font-medium block mb-1">Tavsif</label>
-                <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="rounded-xl resize-none" rows={3} data-testid="input-product-desc" />
+                <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="rounded-xl resize-none" rows={2} data-testid="input-product-desc" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium block mb-1">Narx *</label>
-                  <Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="rounded-xl" data-testid="input-product-price" />
+                  <label className="text-sm font-medium block mb-1">Yangi narx *</label>
+                  <Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="rounded-xl" placeholder="0" data-testid="input-product-price" />
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">Eski narx</label>
-                  <Input type="number" value={form.oldPrice} onChange={e => setForm(f => ({ ...f, oldPrice: e.target.value }))} className="rounded-xl" data-testid="input-product-oldprice" />
+                  <Input type="number" value={form.oldPrice} onChange={e => setForm(f => ({ ...f, oldPrice: e.target.value }))} className="rounded-xl" placeholder="Chegirma oldin" data-testid="input-product-oldprice" />
                 </div>
               </div>
+
               <div>
-                <label className="text-sm font-medium block mb-1">Rasm URL-lari (har biri yangi qatorda)</label>
-                <Textarea value={form.images} onChange={e => setForm(f => ({ ...f, images: e.target.value }))} className="rounded-xl resize-none" rows={3} placeholder="https://..." data-testid="input-product-images" />
+                <label className="text-sm font-medium block mb-1">Rasmlar</label>
+                <div className="flex gap-1.5 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setImageMode("url")}
+                    className={`flex-1 h-9 rounded-xl text-xs font-semibold border-2 flex items-center justify-center gap-1.5 transition-all ${imageMode === "url" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                  >
+                    <LinkIcon className="w-3.5 h-3.5" /> URL orqali
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageMode("upload")}
+                    className={`flex-1 h-9 rounded-xl text-xs font-semibold border-2 flex items-center justify-center gap-1.5 transition-all ${imageMode === "upload" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Kompyuterdan
+                  </button>
+                </div>
+
+                {imageMode === "url" ? (
+                  <Textarea
+                    value={form.images}
+                    onChange={e => setForm(f => ({ ...f, images: e.target.value }))}
+                    className="rounded-xl resize-none"
+                    rows={3}
+                    placeholder="https://... (har bir URL yangi qatorda)"
+                    data-testid="input-product-images"
+                  />
+                ) : (
+                  <div
+                    onClick={() => !uploading && fileRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${uploading ? "border-primary bg-primary/5" : "border-border hover:bg-muted/30"}`}
+                  >
+                    {uploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm font-medium">Rasmni tanlash uchun bosing</p>
+                        <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WebP — max 10MB</p>
+                      </>
+                    )}
+                    <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                  </div>
+                )}
+
+                {imagesList.length > 0 && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {imagesList.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <img src={url} alt="" className="w-16 h-16 rounded-xl object-cover border border-border" />
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, images: imagesList.filter((_, idx) => idx !== i).join("\n") }))}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium block mb-1">Kategoriya</label>
@@ -237,34 +346,44 @@ export default function Products() {
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">O'lchov birligi</label>
-                  <div className="flex gap-1.5">
-                    {(["dona", "kg", "pachka"] as const).map(u => (
-                      <button
-                        key={u}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, unit: u }))}
-                        className={`flex-1 h-10 rounded-xl text-xs font-semibold border-2 transition-all ${form.unit === u ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
-                        data-testid={`button-unit-${u}`}
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
+                  <select
+                    value={form.unit}
+                    onChange={e => setForm(f => ({ ...f, unit: e.target.value as UnitType }))}
+                    className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
+                    data-testid="select-unit"
+                  >
+                    {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                  </select>
                 </div>
               </div>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  onClick={() => setForm(f => ({ ...f, inStock: !f.inStock }))}
-                  className={`w-12 h-6 rounded-full flex items-center transition-all ${form.inStock ? "bg-primary" : "bg-muted"}`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full shadow mx-0.5 transition-all ${form.inStock ? "ml-6" : ""}`} />
-                </div>
-                <span className="text-sm font-medium">Mavjud</span>
-              </label>
+
+              <div className="flex gap-4">
+                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                  <div
+                    onClick={() => setForm(f => ({ ...f, inStock: !f.inStock }))}
+                    className={`w-12 h-6 rounded-full flex items-center transition-all ${form.inStock ? "bg-primary" : "bg-muted"}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow mx-0.5 transition-all ${form.inStock ? "ml-6" : ""}`} />
+                  </div>
+                  <span className="text-sm font-medium">Mavjud</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                  <div
+                    onClick={() => setForm(f => ({ ...f, isFeatured: !f.isFeatured }))}
+                    className={`w-12 h-6 rounded-full flex items-center transition-all ${form.isFeatured ? "bg-yellow-500" : "bg-muted"}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow mx-0.5 transition-all ${form.isFeatured ? "ml-6" : ""}`} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Star className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm font-medium">Tavsiya</span>
+                  </div>
+                </label>
+              </div>
 
               <Button
                 onClick={handleSave}
-                disabled={!form.name || !form.price || createProduct.isPending || updateProduct.isPending}
+                disabled={!form.name || !form.price || createProduct.isPending || updateProduct.isPending || uploading}
                 className="w-full rounded-xl"
                 data-testid="button-save-product"
               >

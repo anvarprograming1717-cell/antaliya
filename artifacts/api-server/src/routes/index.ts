@@ -15,6 +15,7 @@ import statsRouter from "./stats";
 import notificationsRouter from "./notifications";
 import couriersRouter from "./couriers";
 import promoCodesRouter from "./promoCodes";
+import chefRouter from "./chef";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(statsRouter);
 router.use(notificationsRouter);
 router.use(couriersRouter);
 router.use(promoCodesRouter);
+router.use(chefRouter);
 
 export default router;

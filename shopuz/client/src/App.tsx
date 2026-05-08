@@ -21,6 +21,7 @@ import Liked from "@/pages/Liked";
 import Chat from "@/pages/Chat";
 import Profile from "@/pages/Profile";
 import CourierApp from "@/pages/CourierApp";
+import ChefPanel from "@/pages/ChefPanel";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
 import Dashboard from "@/pages/admin/Dashboard";
@@ -83,6 +84,7 @@ function AppRouter() {
       <Route path="/login" component={Login} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/courier" component={CourierApp} />
+      <Route path="/chef" component={ChefPanel} />
       <Route path="/" component={() => <CustomerRoute component={Home} />} />
       <Route path="/product/:id" component={() => <CustomerRoute component={ProductDetail} />} />
       <Route path="/cart" component={() => <CustomerRoute component={Cart} />} />

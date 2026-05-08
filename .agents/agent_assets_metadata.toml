@@ -174,3 +174,9 @@ id = "a22fR8gQoL6Ymhv-IB9gR"
 uri = "file://patch22.tar.gz"
 type = "unspecified"
 title = "patch22.tar.gz — yetkazib berish narxi tuzatildi"
+
+[[outputs]]
+id = "4TLAuLOUZEH5P0Cu-maAO"
+uri = "file://patch_chef_delivery_20260508.tar.gz"
+type = "unspecified"
+title = "patch_chef_delivery_20260508.tar.gz — cPanel patch"
