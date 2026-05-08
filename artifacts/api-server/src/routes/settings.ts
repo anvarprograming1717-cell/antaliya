@@ -121,4 +121,50 @@ router.get("/delivery-zone", async (req, res): Promise<void> => {
   res.json({ lat: parseFloat(map.deliveryZoneLat), lng: parseFloat(map.deliveryZoneLng), radiusKm: parseFloat(map.deliveryZoneRadius ?? "5") });
 });
 
+// ── Work schedule ─────────────────────────────────────────────────────────────
+router.get("/admin/work-schedule", async (req, res): Promise<void> => {
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  const raw = map.workDays;
+  let workDays = [1, 2, 3, 4, 5, 6];
+  if (raw) { try { workDays = JSON.parse(raw); } catch {} }
+  res.json({ workDays });
+});
+
+router.patch("/admin/work-schedule", async (req, res): Promise<void> => {
+  const { workDays } = req.body;
+  if (!Array.isArray(workDays)) { res.status(400).json({ error: "workDays must be array" }); return; }
+  await upsertSetting("workDays", JSON.stringify(workDays));
+  res.json({ workDays });
+});
+
+router.get("/work-schedule", async (req, res): Promise<void> => {
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  const raw = map.workDays;
+  let workDays = [1, 2, 3, 4, 5, 6];
+  if (raw) { try { workDays = JSON.parse(raw); } catch {} }
+  res.json({ workDays });
+});
+
+// ── Telegram admins ───────────────────────────────────────────────────────────
+router.get("/admin/telegram-admins", async (req, res): Promise<void> => {
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  const raw = map.telegramAdminIds;
+  let adminIds: string[] = [];
+  if (raw) { try { adminIds = JSON.parse(raw); } catch {} }
+  res.json({ adminIds });
+});
+
+router.patch("/admin/telegram-admins", async (req, res): Promise<void> => {
+  const { adminIds } = req.body;
+  if (!Array.isArray(adminIds)) { res.status(400).json({ error: "adminIds must be array" }); return; }
+  await upsertSetting("telegramAdminIds", JSON.stringify(adminIds.map(String)));
+  res.json({ adminIds });
+});
+
 export default router;

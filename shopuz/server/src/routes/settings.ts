@@ -1,214 +1,170 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db } from "../db.js";
-import { settingsTable } from "../schema.js";
+import { db, settingsTable } from "@workspace/db";
+import { UpdateAdminPasswordBody, AdminLoginBody } from "@workspace/api-zod";
 
-const router = Router();
+const router: IRouter = Router();
 
-async function upsert(key: string, value: string) {
-  const [existing] = await db.select().from(settingsTable).where(eq(settingsTable.key, key)).limit(1);
-  if (existing) {
+async function upsertSetting(key: string, value: string) {
+  const existing = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  if (existing.length > 0) {
     await db.update(settingsTable).set({ value }).where(eq(settingsTable.key, key));
   } else {
     await db.insert(settingsTable).values({ key, value });
   }
 }
 
-router.get("/site-settings", async (_req, res): Promise<void> => {
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  res.json({ siteName: m.siteName ?? null, logoUrl: m.logoUrl ?? null });
-});
-
-router.patch("/admin/site-settings", async (req, res): Promise<void> => {
-  const { siteName, logoUrl } = req.body;
-  if (siteName !== undefined) await upsert("siteName", siteName ?? "");
-  if (logoUrl !== undefined) await upsert("logoUrl", logoUrl ?? "");
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  res.json({ siteName: m.siteName ?? null, logoUrl: m.logoUrl ?? null });
-});
-
-router.get("/support-contact", async (_req, res): Promise<void> => {
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  res.json({ phone: m.supportPhone ?? null, telegram: m.supportTelegram ?? null });
+router.get("/support-contact", async (req, res): Promise<void> => {
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  res.json({ phone: map.supportPhone ?? "+998901234567", telegram: map.supportTelegram ?? null });
 });
 
 router.patch("/admin/support-contact", async (req, res): Promise<void> => {
   const { phone, telegram } = req.body;
-  if (phone !== undefined) await upsert("supportPhone", phone ?? "");
-  if (telegram !== undefined) await upsert("supportTelegram", telegram ?? "");
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  res.json({ phone: m.supportPhone ?? null, telegram: m.supportTelegram ?? null });
-});
-
-router.post("/admin/login", async (req, res): Promise<void> => {
-  const { password } = req.body;
-  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "adminPassword")).limit(1);
-  const adminPass = setting?.value ?? "admin123";
-  if (password !== adminPass) { res.status(401).json({ error: "Invalid password" }); return; }
-  res.json({ success: true });
-});
-
-router.post("/admin/logout", async (_req, res): Promise<void> => {
-  res.json({ success: true });
+  if (phone) await upsertSetting("supportPhone", phone);
+  if (telegram !== undefined) await upsertSetting("supportTelegram", telegram ?? "");
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  res.json({ phone: map.supportPhone ?? "+998901234567", telegram: map.supportTelegram ?? null });
 });
 
 router.patch("/admin/password", async (req, res): Promise<void> => {
-  const { currentPassword, newPassword } = req.body;
-  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "adminPassword")).limit(1);
-  const adminPass = setting?.value ?? "admin123";
-  if (currentPassword !== adminPass) { res.status(400).json({ error: "Wrong current password" }); return; }
-  await upsert("adminPassword", newPassword);
+  const parsed = UpdateAdminPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  const currentPassword = map.adminPassword ?? "admin123";
+  if (parsed.data.currentPassword !== currentPassword) {
+    res.status(400).json({ error: "Current password incorrect" });
+    return;
+  }
+  await upsertSetting("adminPassword", parsed.data.newPassword);
   res.json({ success: true });
 });
 
-// Delivery settings — includes estimatedMinutes
-// Client hook uses /api/delivery (not /api/admin/delivery-settings)
-async function getDeliverySettingsJson(db: any) {
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach((s: any) => { m[s.key] = s.value; });
-  return {
-    deliveryFee: parseFloat(m.deliveryFee ?? "15000"),
-    freeDeliveryThreshold: parseFloat(m.freeDeliveryThreshold ?? "300000"),
-    estimatedMinutes: parseInt(m.estimatedMinutes ?? "45"),
-  };
-}
-
-router.get("/delivery", async (_req, res): Promise<void> => {
-  res.json(await getDeliverySettingsJson(db));
-});
-
-router.patch("/delivery", async (req, res): Promise<void> => {
-  const { deliveryFee, freeDeliveryThreshold, estimatedMinutes } = req.body;
-  if (deliveryFee !== undefined) await upsert("deliveryFee", String(deliveryFee));
-  if (freeDeliveryThreshold !== undefined) await upsert("freeDeliveryThreshold", String(freeDeliveryThreshold));
-  if (estimatedMinutes !== undefined) await upsert("estimatedMinutes", String(estimatedMinutes));
-  res.json(await getDeliverySettingsJson(db));
-});
-
-router.get("/admin/delivery-settings", async (_req, res): Promise<void> => {
-  res.json(await getDeliverySettingsJson(db));
-});
-
-router.patch("/admin/delivery-settings", async (req, res): Promise<void> => {
-  const { deliveryFee, freeDeliveryThreshold, estimatedMinutes } = req.body;
-  if (deliveryFee !== undefined) await upsert("deliveryFee", String(deliveryFee));
-  if (freeDeliveryThreshold !== undefined) await upsert("freeDeliveryThreshold", String(freeDeliveryThreshold));
-  if (estimatedMinutes !== undefined) await upsert("estimatedMinutes", String(estimatedMinutes));
-  res.json(await getDeliverySettingsJson(db));
-});
-
-router.get("/admin/telegram-admins", async (_req, res): Promise<void> => {
-  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "telegram_admins")).limit(1);
-  const ids = setting?.value ? setting.value.split(",").map(Number).filter(Boolean) : [214840221, 7157868450];
-  res.json({ adminIds: ids });
-});
-
-router.patch("/admin/telegram-admins", async (req, res): Promise<void> => {
-  const { adminIds } = req.body;
-  if (!Array.isArray(adminIds)) { res.status(400).json({ error: "adminIds array required" }); return; }
-  await upsert("telegram_admins", adminIds.join(","));
-  res.json({ adminIds });
-});
-
-// Dam olish kunlari (ish kunlari)
-// workDays: comma-separated JS day numbers. 0=Yak, 1=Du, 2=Se, 3=Ch, 4=Pa, 5=Ju, 6=Sha
-// Default: 1,2,3,4,5,6 (Dush-Sha ishlaydi, Yak dam oladi)
-router.get("/work-schedule", async (_req, res): Promise<void> => {
-  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "workDays")).limit(1);
-  const workDays = setting?.value
-    ? setting.value.split(",").map(Number).filter(n => !isNaN(n))
-    : [1, 2, 3, 4, 5, 6];
-
-  const now = new Date();
-  const todayDay = now.getDay(); // 0=Sun, 1=Mon, ...
-  const isOpen = workDays.includes(todayDay);
-
-  // Keyingi ish kunini toping
-  let nextWorkDay = "";
-  if (!isOpen) {
-    for (let i = 1; i <= 7; i++) {
-      const nextDay = (todayDay + i) % 7;
-      if (workDays.includes(nextDay)) {
-        const nextDate = new Date(now);
-        nextDate.setDate(now.getDate() + i);
-        nextWorkDay = nextDate.toLocaleDateString("ru-RU", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        });
-        break;
-      }
-    }
+router.post("/admin/login", async (req, res): Promise<void> => {
+  const parsed = AdminLoginBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
   }
-
-  res.json({ isOpen, workDays, nextWorkDay });
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  const adminPassword = map.adminPassword ?? "admin123";
+  if (parsed.data.password !== adminPassword) {
+    res.status(401).json({ error: "Invalid password" });
+    return;
+  }
+  res.json({ success: true });
 });
 
-router.get("/admin/work-schedule", async (_req, res): Promise<void> => {
-  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "workDays")).limit(1);
-  const workDays = setting?.value
-    ? setting.value.split(",").map(Number).filter((n: number) => !isNaN(n))
-    : [1, 2, 3, 4, 5, 6];
-  res.json({ workDays });
+router.post("/admin/logout", async (req, res): Promise<void> => {
+  res.json({ success: true });
 });
 
-router.patch("/admin/work-schedule", async (req, res): Promise<void> => {
-  const { workDays } = req.body;
-  if (!Array.isArray(workDays)) { res.status(400).json({ error: "workDays array required" }); return; }
-  await upsert("workDays", workDays.join(","));
-  res.json({ workDays });
+router.get("/site-settings", async (req, res): Promise<void> => {
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  res.json({ siteName: map.siteName ?? null, logoUrl: map.logoUrl ?? null });
+});
+
+router.patch("/admin/site-settings", async (req, res): Promise<void> => {
+  const { siteName, logoUrl } = req.body;
+  if (siteName !== undefined) await upsertSetting("siteName", siteName ?? "");
+  if (logoUrl !== undefined) await upsertSetting("logoUrl", logoUrl ?? "");
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  res.json({ siteName: map.siteName ?? null, logoUrl: map.logoUrl ?? null });
 });
 
 // Chef password
 router.patch("/admin/chef-password", async (req, res): Promise<void> => {
   const { password } = req.body;
   if (!password || password.length < 4) { res.status(400).json({ error: "Password too short" }); return; }
-  await upsert("chefPassword", password);
+  await upsertSetting("chefPassword", password);
   res.json({ success: true });
 });
 
-// Delivery zone (center lat/lng + radius)
-router.get("/admin/delivery-zone", async (_req, res): Promise<void> => {
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  if (!m.deliveryZoneLat) { res.json({ lat: null, lng: null, radiusKm: 5 }); return; }
-  res.json({
-    lat: parseFloat(m.deliveryZoneLat),
-    lng: parseFloat(m.deliveryZoneLng),
-    radiusKm: parseFloat(m.deliveryZoneRadius ?? "5"),
-  });
+// Delivery zone
+router.get("/admin/delivery-zone", async (req, res): Promise<void> => {
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  if (!map.deliveryZoneLat) { res.json({ lat: null, lng: null, radiusKm: 5 }); return; }
+  res.json({ lat: parseFloat(map.deliveryZoneLat), lng: parseFloat(map.deliveryZoneLng), radiusKm: parseFloat(map.deliveryZoneRadius ?? "5") });
 });
 
 router.patch("/admin/delivery-zone", async (req, res): Promise<void> => {
   const { lat, lng, radiusKm } = req.body;
   if (lat === undefined || lng === undefined) { res.status(400).json({ error: "lat and lng required" }); return; }
-  await upsert("deliveryZoneLat", String(lat));
-  await upsert("deliveryZoneLng", String(lng));
-  await upsert("deliveryZoneRadius", String(radiusKm ?? 5));
+  await upsertSetting("deliveryZoneLat", String(lat));
+  await upsertSetting("deliveryZoneLng", String(lng));
+  await upsertSetting("deliveryZoneRadius", String(radiusKm ?? 5));
   res.json({ lat, lng, radiusKm: radiusKm ?? 5 });
 });
 
-// Public delivery zone (for checkout page)
-router.get("/delivery-zone", async (_req, res): Promise<void> => {
-  const all = await db.select().from(settingsTable);
-  const m: Record<string, string> = {};
-  all.forEach(s => { m[s.key] = s.value; });
-  if (!m.deliveryZoneLat) { res.json({ lat: null, lng: null, radiusKm: null }); return; }
-  res.json({
-    lat: parseFloat(m.deliveryZoneLat),
-    lng: parseFloat(m.deliveryZoneLng),
-    radiusKm: parseFloat(m.deliveryZoneRadius ?? "5"),
-  });
+router.get("/delivery-zone", async (req, res): Promise<void> => {
+  const settings = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  settings.forEach(s => { map[s.key] = s.value; });
+  if (!map.deliveryZoneLat) { res.json({ lat: null, lng: null, radiusKm: null }); return; }
+  res.json({ lat: parseFloat(map.deliveryZoneLat), lng: parseFloat(map.deliveryZoneLng), radiusKm: parseFloat(map.deliveryZoneRadius ?? "5") });
+});
+
+// ── Work schedule ─────────────────────────────────────────────────────────────
+router.get("/admin/work-schedule", async (req, res): Promise<void> => {
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  const raw = map.workDays;
+  let workDays = [1, 2, 3, 4, 5, 6];
+  if (raw) { try { workDays = JSON.parse(raw); } catch {} }
+  res.json({ workDays });
+});
+
+router.patch("/admin/work-schedule", async (req, res): Promise<void> => {
+  const { workDays } = req.body;
+  if (!Array.isArray(workDays)) { res.status(400).json({ error: "workDays must be array" }); return; }
+  await upsertSetting("workDays", JSON.stringify(workDays));
+  res.json({ workDays });
+});
+
+router.get("/work-schedule", async (req, res): Promise<void> => {
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  const raw = map.workDays;
+  let workDays = [1, 2, 3, 4, 5, 6];
+  if (raw) { try { workDays = JSON.parse(raw); } catch {} }
+  res.json({ workDays });
+});
+
+// ── Telegram admins ───────────────────────────────────────────────────────────
+router.get("/admin/telegram-admins", async (req, res): Promise<void> => {
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  const raw = map.telegramAdminIds;
+  let adminIds: string[] = [];
+  if (raw) { try { adminIds = JSON.parse(raw); } catch {} }
+  res.json({ adminIds });
+});
+
+router.patch("/admin/telegram-admins", async (req, res): Promise<void> => {
+  const { adminIds } = req.body;
+  if (!Array.isArray(adminIds)) { res.status(400).json({ error: "adminIds must be array" }); return; }
+  await upsertSetting("telegramAdminIds", JSON.stringify(adminIds.map(String)));
+  res.json({ adminIds });
 });
 
 export default router;

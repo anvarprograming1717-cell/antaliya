@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable, promoCodesTable, promoCodeUsagesTable } from "@workspace/db";
+import { sendTelegramToAdmins } from "../telegram.js";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -180,6 +181,17 @@ router.post("/orders", async (req, res): Promise<void> => {
   await db.delete(cartTable).where(eq(cartTable.customerId, customerId));
 
   const enriched = await enrichOrder(order);
+
+  // Telegram notification to admins
+  const customer = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+  const customerName = customer[0]?.name ?? "Noma'lum";
+  const customerPhone = customer[0]?.phone ?? "";
+  const deliveryLabel = parsed.data.deliveryMethod === "delivery" ? "Yetkazib berish" : "Olib ketish";
+  const paymentLabel = parsed.data.paymentMethod === "cash" ? "Naqd" : parsed.data.paymentMethod === "card" ? "Karta" : parsed.data.paymentMethod;
+  const itemLines = enriched.items.map((i: any) => `  • ${i.productName} × ${i.quantity}`).join("\n");
+  const tgText = `🛒 <b>Yangi buyurtma #${order.id}</b>\n👤 ${customerName} (${customerPhone})\n💰 ${enriched.totalPrice.toLocaleString()} so'm\n🚚 ${deliveryLabel} | 💳 ${paymentLabel}${parsed.data.address ? `\n📍 ${parsed.data.address}` : ""}${parsed.data.note ? `\n📝 ${parsed.data.note}` : ""}\n\n${itemLines}`;
+  sendTelegramToAdmins(tgText).catch(() => {});
+
   res.status(201).json(enriched);
 });
 

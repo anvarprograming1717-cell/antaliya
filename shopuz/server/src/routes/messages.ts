@@ -1,116 +1,102 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db } from "../db.js";
-import { messagesTable, customersTable } from "../schema.js";
-import { notifyAdmins } from "../services/telegram.js";
+import { db, messagesTable, customersTable } from "@workspace/db";
+import { sendTelegramToAdmins } from "../telegram.js";
+import {
+  ListMessagesQueryParams,
+  MarkMessagesReadBody,
+} from "@workspace/api-zod";
 
-const router = Router();
+const router: IRouter = Router();
 
-// GET /api/messages — customer o'z xabarlarini ko'radi
-// GET /api/messages?customerId=X — admin belgilangan mijoz xabarlarini ko'radi
+function serialize(m: any) {
+  return {
+    ...m,
+    createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt,
+  };
+}
+
 router.get("/messages", async (req, res): Promise<void> => {
-  const customerId = (req as any).customerId;
-  const queryCustomerId = req.query.customerId ? parseInt(req.query.customerId as string) : null;
-
-  // Admin so'rovi: query param orqali customerId berilgan
-  if (queryCustomerId) {
-    const msgs = await db.select().from(messagesTable).where(eq(messagesTable.customerId, queryCustomerId));
-    res.json(msgs);
+  const query = ListMessagesQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
     return;
   }
-
-  // Mijoz o'z xabarlarini ko'rishi
-  if (!customerId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const msgs = await db.select().from(messagesTable).where(eq(messagesTable.customerId, customerId));
-  await db.update(messagesTable).set({ isRead: true }).where(
-    and(eq(messagesTable.customerId, customerId), eq(messagesTable.senderType, "admin"))
-  );
-  res.json(msgs);
+  const customerId = (req as any).customerId;
+  const targetId = query.data.customerId ?? customerId;
+  if (!targetId) {
+    res.status(400).json({ error: "customerId required" });
+    return;
+  }
+  const messages = await db.select().from(messagesTable)
+    .where(eq(messagesTable.customerId, targetId))
+    .orderBy(messagesTable.createdAt);
+  res.json(messages.map(serialize));
 });
 
-// POST /api/messages — customer yozadi YOKI admin yozadi (senderType: "admin" + customerId bilan)
 router.post("/messages", async (req, res): Promise<void> => {
-  const customerId = (req as any).customerId;
-  const { text, mediaUrl, mediaType, senderType, customerId: bodyCustomerId } = req.body;
-
-  // Admin xabari: senderType === "admin" va body da customerId bor
-  if (senderType === "admin" && bodyCustomerId) {
-    const result = await db.insert(messagesTable).values({
-      customerId: bodyCustomerId,
-      senderType: "admin",
-      text: text ?? "",
-      mediaUrl: mediaUrl ?? null,
-      mediaType: mediaType ?? null,
-    });
-    const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, result[0].insertId)).limit(1);
-    // Mijozdan kelgan xabarlarni o'qilgan qilib belgilash
-    await db.update(messagesTable).set({ isRead: true }).where(
-      and(eq(messagesTable.customerId, bodyCustomerId), eq(messagesTable.senderType, "customer"))
-    );
-    res.status(201).json(msg);
+  const { text, senderType, customerId: bodyCustomerId, mediaUrl, mediaType } = req.body;
+  if (!senderType || !["customer", "admin"].includes(senderType)) {
+    res.status(400).json({ error: "senderType required" });
     return;
   }
-
-  // Mijoz xabari
-  if (!customerId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const result = await db.insert(messagesTable).values({
-    customerId,
-    senderType: "customer",
+  const customerId = (req as any).customerId;
+  const msgCustomerId = bodyCustomerId ?? customerId;
+  if (!msgCustomerId) {
+    res.status(400).json({ error: "customerId required" });
+    return;
+  }
+  if (!text && !mediaUrl) {
+    res.status(400).json({ error: "text or mediaUrl required" });
+    return;
+  }
+  const [message] = await db.insert(messagesTable).values({
+    customerId: msgCustomerId,
+    senderType,
     text: text ?? "",
     mediaUrl: mediaUrl ?? null,
     mediaType: mediaType ?? null,
-  });
-  const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, result[0].insertId)).limit(1);
+  }).returning();
 
-  // Adminga Telegram orqali bildirishnoma
-  try {
-    const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
-    const customerName = customer?.name || customer?.phone || `Mijoz #${customerId}`;
-    notifyAdmins(
-      `💬 <b>Yangi xabar!</b>\n\n` +
-      `👤 Mijoz: <b>${customerName}</b>\n` +
-      (customer?.phone ? `📱 Tel: ${customer.phone}\n` : "") +
-      `\n📝 "${text ?? ""}"\n\n` +
-      `Admin panelda javob bering 👇\nhttps://fresh-777.uz/admin/chat`
-    ).catch(() => {});
-  } catch {}
+  // Telegram notification to admins only when customer sends a message
+  if (senderType === "customer") {
+    const customer = await db.select().from(customersTable).where(eq(customersTable.id, msgCustomerId)).limit(1);
+    const customerName = customer[0]?.name ?? "Noma'lum";
+    const customerPhone = customer[0]?.phone ?? "";
+    const preview = text ? (text.length > 100 ? text.slice(0, 100) + "…" : text) : (mediaType === "image" ? "🖼 Rasm yuborildi" : "📎 Fayl yuborildi");
+    const tgText = `💬 <b>Yangi xabar</b>\n👤 ${customerName} (${customerPhone})\n\n${preview}`;
+    sendTelegramToAdmins(tgText).catch(() => {});
+  }
 
-  res.status(201).json(msg);
+  res.status(201).json(serialize(message));
 });
 
-// Admin: barcha mijozlar bilan suhbatlar (faqat xabar bor bo'lganlar)
-router.get("/admin/messages", async (_req, res): Promise<void> => {
-  const customers = await db.select().from(customersTable);
-  const result = await Promise.all(customers.map(async (c) => {
-    const msgs = await db.select().from(messagesTable).where(eq(messagesTable.customerId, c.id));
-    const unread = msgs.filter(m => m.senderType === "customer" && !m.isRead).length;
-    const last = msgs[msgs.length - 1];
-    return { customerId: c.id, customerName: c.name, customerPhone: c.phone, unreadCount: unread, lastMessage: last ?? null, messages: msgs };
-  }));
-  res.json(result.filter(r => r.messages.length > 0));
-});
-
-// Admin: muayyan mijozga javob berish
-router.post("/admin/messages/:customerId", async (req, res): Promise<void> => {
-  const customerId = parseInt(req.params.customerId);
-  const { text, mediaUrl, mediaType } = req.body;
-  const result = await db.insert(messagesTable).values({ customerId, senderType: "admin", text: text ?? "", mediaUrl: mediaUrl ?? null, mediaType: mediaType ?? null });
-  const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, result[0].insertId)).limit(1);
-  await db.update(messagesTable).set({ isRead: true }).where(and(eq(messagesTable.customerId, customerId), eq(messagesTable.senderType, "customer")));
-  res.status(201).json(msg);
-});
-
-// Mijoz o'z suhbatini o'chiradi
 router.delete("/messages", async (req, res): Promise<void> => {
   const customerId = (req as any).customerId;
-  if (!customerId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  await db.delete(messagesTable).where(eq(messagesTable.customerId, customerId));
+  const queryCustomerId = req.query.customerId ? parseInt(req.query.customerId as string, 10) : null;
+  const targetId = queryCustomerId ?? customerId;
+  if (!targetId) {
+    res.status(400).json({ error: "customerId required" });
+    return;
+  }
+  await db.delete(messagesTable).where(eq(messagesTable.customerId, targetId));
   res.json({ success: true });
 });
 
-// Admin: mijoz suhbatini o'chiradi
-router.delete("/admin/messages/:customerId", async (req, res): Promise<void> => {
-  await db.delete(messagesTable).where(eq(messagesTable.customerId, parseInt(req.params.customerId)));
+router.patch("/messages/read", async (req, res): Promise<void> => {
+  const parsed = MarkMessagesReadBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  await db.update(messagesTable)
+    .set({ isRead: true })
+    .where(
+      and(
+        eq(messagesTable.customerId, parsed.data.customerId),
+        eq(messagesTable.senderType, parsed.data.senderType === "customer" ? "admin" : "customer"),
+      )
+    );
   res.json({ success: true });
 });
 
