@@ -34,34 +34,54 @@ function clearCourierSession() {
 }
 
 function MapWidget({ lat, lng, address }: { lat?: number; lng?: number; address?: string }) {
-  if (lat && lng) {
-    const url = `https://yandex.uz/map-widget/v1/?ll=${lng},${lat}&pt=${lng},${lat},pm2rdl&z=16&l=map`;
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    lat && lng ? { lat, lng } : null
+  );
+
+  useEffect(() => {
+    if (lat && lng) { setCoords({ lat, lng }); return; }
+    if (!address) return;
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&accept-language=uz`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.[0]) setCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+      })
+      .catch(() => {});
+  }, [lat, lng, address]);
+
+  if (!coords) {
+    if (!address) return null;
     return (
+      <div className="rounded-2xl border border-border bg-muted/30 h-14 flex items-center px-3 gap-2 text-xs text-muted-foreground">
+        <MapPin className="w-4 h-4 shrink-0" />
+        <span className="truncate">{address}</span>
+      </div>
+    );
+  }
+
+  const { lat: la, lng: lo } = coords;
+  const delta = 0.008;
+  const bbox = `${lo - delta},${la - delta},${lo + delta},${la + delta}`;
+  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${la},${lo}`;
+  return (
+    <div className="space-y-1">
       <iframe
         src={url}
         width="100%"
         height="220"
-        className="rounded-2xl border border-border"
-        allowFullScreen
+        className="rounded-2xl border border-border block"
         title="Manzil xaritasi"
       />
-    );
-  }
-  if (address) {
-    const encoded = encodeURIComponent(address);
-    const url = `https://yandex.uz/map-widget/v1/?text=${encoded}&lang=uz_UZ&z=15&l=map`;
-    return (
-      <iframe
-        src={url}
-        width="100%"
-        height="220"
-        className="rounded-2xl border border-border"
-        allowFullScreen
-        title="Manzil xaritasi"
-      />
-    );
-  }
-  return null;
+      <a
+        href={`https://www.openstreetmap.org/?mlat=${la}&mlon=${lo}#map=16/${la}/${lo}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-primary flex items-center gap-1 px-1"
+      >
+        <Navigation className="w-3 h-3" /> Katta xaritada ko'rish
+      </a>
+    </div>
+  );
 }
 
 export default function CourierApp() {

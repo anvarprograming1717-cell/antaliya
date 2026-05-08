@@ -75,7 +75,11 @@ export default function Delivery() {
   };
 
   const mapUrl = zone.lat && zone.lng
-    ? `https://yandex.uz/map-widget/v1/?ll=${zone.lng},${zone.lat}&pt=${zone.lng},${zone.lat},pm2rdl&z=14&l=map`
+    ? (() => {
+        const la = parseFloat(zone.lat), lo = parseFloat(zone.lng);
+        const delta = 0.012;
+        return `https://www.openstreetmap.org/export/embed.html?bbox=${lo - delta},${la - delta},${lo + delta},${la + delta}&layer=mapnik&marker=${la},${lo}`;
+      })()
     : null;
 
   return (

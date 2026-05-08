@@ -180,3 +180,9 @@ id = "4TLAuLOUZEH5P0Cu-maAO"
 uri = "file://patch_chef_delivery_20260508.tar.gz"
 type = "unspecified"
 title = "patch_chef_delivery_20260508.tar.gz — cPanel patch"
+
+[[outputs]]
+id = "BC7YP-3v9CYEsdO5Hjima"
+uri = "file://patch_map_fix_20260508.tar.gz"
+type = "unspecified"
+title = "patch_map_fix_20260508.tar.gz — Harita tuzatish patch"
