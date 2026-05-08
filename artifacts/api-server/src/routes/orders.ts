@@ -240,6 +240,27 @@ router.delete("/orders/:id/delete", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
 
+// ── Admin routes ──────────────────────────────────────────────────────────────
+router.get("/admin/orders", async (req, res): Promise<void> => {
+  const { status } = req.query as { status?: string };
+  let conditions: any[] = [];
+  if (status) conditions.push(eq(ordersTable.status, status as any));
+  const orders = await db.select().from(ordersTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(ordersTable.createdAt);
+  const enriched = await Promise.all(orders.map(enrichOrder));
+  res.json(enriched);
+});
+
+router.delete("/admin/orders/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+  await db.delete(ordersTable).where(eq(ordersTable.id, id));
+  res.json({ success: true });
+});
+
 router.patch("/orders/:id/assign-courier", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   const { courierId } = req.body;

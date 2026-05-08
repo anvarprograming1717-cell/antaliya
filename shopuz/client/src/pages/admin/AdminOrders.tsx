@@ -24,10 +24,28 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUSES = ["new", "preparing", "delivered", "cancelled"] as const;
 
-function YandexMapEmbed({ address }: { address: string }) {
+function OsmMapEmbed({ address }: { address: string }) {
   const [showMap, setShowMap] = useState(false);
-  const encodedAddress = encodeURIComponent(address);
-  const mapUrl = `https://yandex.uz/map-widget/v1/?text=${encodedAddress}&lang=uz_UZ&z=15&l=map`;
+  const [mapUrl, setMapUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadMap = async () => {
+    if (mapUrl) { setShowMap(!showMap); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&accept-language=uz`
+      );
+      const data = await res.json();
+      if (data?.[0]) {
+        const la = parseFloat(data[0].lat), lo = parseFloat(data[0].lon);
+        const d = 0.008;
+        setMapUrl(`https://www.openstreetmap.org/export/embed.html?bbox=${lo-d},${la-d},${lo+d},${la+d}&layer=mapnik&marker=${la},${lo}`);
+      }
+    } catch {}
+    setLoading(false);
+    setShowMap(true);
+  };
 
   return (
     <div className="col-span-2">
@@ -37,29 +55,20 @@ function YandexMapEmbed({ address }: { address: string }) {
         <p className="font-medium text-sm flex-1">{address}</p>
       </div>
       <button
-        onClick={() => setShowMap(!showMap)}
-        className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-all px-3 py-1.5 rounded-xl"
+        onClick={loadMap}
+        disabled={loading}
+        className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-all px-3 py-1.5 rounded-xl disabled:opacity-60"
       >
         <Map className="w-3.5 h-3.5" />
-        {showMap ? "Xaritani yopish" : "Xaritada ko'rsatish"}
+        {loading ? "Yuklanmoqda..." : showMap ? "Xaritani yopish" : "Xaritada ko'rsatish"}
       </button>
-
-      {showMap && (
+      {showMap && mapUrl && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
           className="mt-3 rounded-2xl overflow-hidden border border-border"
         >
-          <iframe
-            src={mapUrl}
-            width="100%"
-            height="280"
-            frameBorder="0"
-            allowFullScreen
-            title="Yetkazib berish manzili"
-            className="block"
-          />
+          <iframe src={mapUrl} width="100%" height="260" title="Yetkazib berish manzili" className="block" />
         </motion.div>
       )}
     </div>
@@ -73,7 +82,10 @@ function CourierSection({ order, couriers, onAssign }: { order: any; couriers: a
   const courierLat = order.courierLat;
   const courierLng = order.courierLng;
   const mapUrl = courierLat && courierLng
-    ? `https://yandex.uz/map-widget/v1/?ll=${courierLng},${courierLat}&pt=${courierLng},${courierLat},pm2rdl&z=16&l=map`
+    ? (() => {
+        const d = 0.006;
+        return `https://www.openstreetmap.org/export/embed.html?bbox=${courierLng-d},${courierLat-d},${courierLng+d},${courierLat+d}&layer=mapnik&marker=${courierLat},${courierLng}`;
+      })()
     : null;
   const [showCourierMap, setShowCourierMap] = useState(false);
 
@@ -303,7 +315,7 @@ export default function AdminOrders() {
                     </div>
                   )}
                   {order.address && (
-                    <YandexMapEmbed address={order.address} />
+                    <OsmMapEmbed address={order.address} />
                   )}
                 </div>
 
