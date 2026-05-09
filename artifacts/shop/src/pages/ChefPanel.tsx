@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChefHat, LogOut, Package, Clock, CheckCircle, XCircle,
@@ -35,7 +35,7 @@ function chefHeaders() {
   return { "Content-Type": "application/json", "x-chef-token": "chef-authenticated" };
 }
 
-// ─── Chat Tab ───────────────────────────────────────────────────────────────
+// ─── Chat Tab ────────────────────────────────────────────────────────────────
 
 interface ChatItem {
   customerId: number;
@@ -49,48 +49,77 @@ interface ChatItem {
 function ChefChat() {
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<ChatItem | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chatsRef = useRef<ChatItem[]>([]);
+  const selectedIdRef = useRef<number | null>(null);
 
-  const fetchChats = async () => {
+  // Keep refs in sync with state (avoids stale closure in interval)
+  const updateChats = (data: ChatItem[]) => {
+    chatsRef.current = data;
+    setChats(data);
+  };
+
+  const selectCustomer = (id: number | null) => {
+    selectedIdRef.current = id;
+    setSelectedId(id);
+  };
+
+  // Derive selected chat from ID — always reads latest chats
+  const selected = chats.find(c => c.customerId === selectedId) ?? null;
+
+  const fetchChats = useCallback(async () => {
     try {
       const r = await fetch("/api/chef/messages", { headers: { "x-chef-token": "chef-authenticated" } });
       if (r.ok) {
         const data: ChatItem[] = await r.json();
-        setChats(data);
-        // Keep selected in sync
-        if (selected) {
-          const updated = data.find(c => c.customerId === selected.customerId);
-          if (updated) setSelected(updated);
-        }
+        updateChats(data);
       }
     } catch {}
     setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchChats();
-    intervalRef.current = setInterval(fetchChats, 6000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
   useEffect(() => {
+    fetchChats();
+    const interval = setInterval(fetchChats, 5000);
+    return () => clearInterval(interval);
+  }, [fetchChats]);
+
+  // Scroll to bottom when conversation changes
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [selected?.messages]);
+  }, [selected?.messages?.length]);
 
   const handleSend = async () => {
-    if (!text.trim() || !selected || sending) return;
+    if (!text.trim() || selectedId === null || sending) return;
+    const msgText = text.trim();
     setSending(true);
+
+    // Optimistic update — add message immediately
+    const tempMsg = {
+      id: Date.now(),
+      customerId: selectedId,
+      senderType: "admin",
+      text: msgText,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+    updateChats(chatsRef.current.map(c =>
+      c.customerId === selectedId
+        ? { ...c, messages: [...c.messages, tempMsg], lastMessage: tempMsg }
+        : c
+    ));
+
+    setText("");
     try {
       await fetch("/api/chef/messages", {
         method: "POST",
         headers: chefHeaders(),
-        body: JSON.stringify({ customerId: selected.customerId, text: text.trim() }),
+        body: JSON.stringify({ customerId: selectedId, text: msgText }),
       });
-      setText("");
+      // Refresh to get server-confirmed messages
       await fetchChats();
     } catch {}
     setSending(false);
@@ -98,13 +127,13 @@ function ChefChat() {
 
   const totalUnread = chats.reduce((s, c) => s + c.unreadCount, 0);
 
-  // Mobile: show conversation view when selected
-  if (selected) {
+  // Conversation view
+  if (selectedId !== null && selected) {
     return (
-      <div className="flex flex-col h-[calc(100vh-140px)]">
-        {/* Chat header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background">
-          <button onClick={() => setSelected(null)} className="p-1.5 rounded-xl hover:bg-muted transition-colors">
+      <div className="flex flex-col" style={{ height: "calc(100vh - 145px)" }}>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur flex-none">
+          <button onClick={() => selectCustomer(null)} className="p-1.5 rounded-xl hover:bg-muted transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-base flex-none">
@@ -117,7 +146,7 @@ function ChefChat() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {(selected.messages || []).length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-8">Hali xabarlar yo'q</div>
           ) : (
@@ -128,7 +157,7 @@ function ChefChat() {
                     ? "bg-primary text-primary-foreground rounded-br-sm"
                     : "bg-muted rounded-bl-sm"
                 }`}>
-                  <p className="leading-relaxed">{msg.text}</p>
+                  <p className="leading-relaxed break-words">{msg.text}</p>
                   <p className={`text-[10px] mt-1 ${msg.senderType === "admin" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                     {new Date(msg.createdAt).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
                   </p>
@@ -140,13 +169,14 @@ function ChefChat() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-border px-3 py-3 flex gap-2 bg-background">
+        <div className="border-t border-border px-3 py-3 flex gap-2 bg-background flex-none">
           <Input
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder="Javob yozing..."
             className="flex-1 rounded-2xl h-11"
+            autoFocus
           />
           <Button
             onClick={handleSend}
@@ -182,7 +212,7 @@ function ChefChat() {
             key={chat.customerId}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            onClick={() => setSelected(chat)}
+            onClick={() => selectCustomer(chat.customerId)}
             className="w-full text-left bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-muted/30 transition-colors"
           >
             <div className="relative">
@@ -198,16 +228,14 @@ function ChefChat() {
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm truncate">{chat.customerName || "—"}</p>
               <p className="text-xs text-muted-foreground truncate">
-                {chat.lastMessage?.senderType === "admin" ? "Siz: " : ""}{chat.lastMessage?.text || chat.customerPhone}
+                {chat.lastMessage?.senderType === "admin" ? "✓ " : ""}{chat.lastMessage?.text || chat.customerPhone}
               </p>
             </div>
-            <div className="text-right flex-none">
-              {chat.lastMessage && (
-                <p className="text-xs text-muted-foreground">
-                  {new Date(chat.lastMessage.createdAt).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              )}
-            </div>
+            {chat.lastMessage && (
+              <p className="text-xs text-muted-foreground flex-none">
+                {new Date(chat.lastMessage.createdAt).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
           </motion.button>
         ))
       )}
@@ -215,7 +243,7 @@ function ChefChat() {
   );
 }
 
-// ─── Main ────────────────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ChefPanel() {
   const [loggedIn, setLoggedIn] = useState(getChefSession());
@@ -383,7 +411,7 @@ export default function ChefPanel() {
         </button>
       </div>
 
-      <div className="p-4 space-y-4 max-w-2xl mx-auto">
+      <div className={tab === "messages" ? "" : "p-4 space-y-4 max-w-2xl mx-auto"}>
         {tab === "orders" && (
           <>
             {orders.length === 0 && (
