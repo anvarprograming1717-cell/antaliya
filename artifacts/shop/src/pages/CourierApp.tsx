@@ -130,9 +130,15 @@ export default function CourierApp() {
     if (session) {
       fetchOrders(session.id);
       const interval = setInterval(() => fetchOrders(session.id), 12000);
+
+      // Auto-resume GPS if it was active before refresh
+      if (localStorage.getItem(GPS_KEY) === "1") {
+        startSharing(true);
+      }
+
       return () => clearInterval(interval);
     }
-  }, [session?.id]);
+  }, [session?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-acquire Wake Lock when tab becomes visible again
   useEffect(() => {
