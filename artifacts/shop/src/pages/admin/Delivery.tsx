@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { MapContainer, TileLayer, Circle, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Circle, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Truck, Check, Info } from "lucide-react";
+import { Truck, Check, Info, Search, X, MapPin } from "lucide-react";
 import { useGetDeliverySettings, getGetDeliverySettingsQueryKey, useUpdateDeliverySettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,48 @@ function ZoneClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: numbe
   return null;
 }
 
+function FlyTo({ target }: { target: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo(target, 15, { duration: 1.2 });
+  }, [target?.[0], target?.[1]]);
+  return null;
+}
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+function useAddressSearch() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const search = useCallback((q: string) => {
+    setQuery(q);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!q.trim() || q.trim().length < 3) { setResults([]); return; }
+    timerRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&accept-language=uz,ru&countrycodes=uz`;
+        const res = await fetch(url, { headers: { "Accept-Language": "uz,ru" } });
+        const data = await res.json();
+        setResults(data);
+      } catch { setResults([]); }
+      setLoading(false);
+    }, 400);
+  }, []);
+
+  const clear = () => { setQuery(""); setResults([]); };
+
+  return { query, results, loading, search, clear };
+}
+
 export default function Delivery() {
   const queryClient = useQueryClient();
   const { data: settings } = useGetDeliverySettings({ query: { queryKey: getGetDeliverySettingsQueryKey() } });
@@ -31,7 +73,10 @@ export default function Delivery() {
 
   const [form, setForm] = useState({ deliveryFee: "", freeDeliveryThreshold: "", estimatedMinutes: "" });
   const [zone, setZone] = useState<{ lat: number | null; lng: number | null; radiusKm: number }>({ lat: null, lng: null, radiusKm: 5 });
-  const mapRef = useRef<any>(null);
+  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const addressSearch = useAddressSearch();
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (settings) {
@@ -47,9 +92,20 @@ export default function Delivery() {
     fetch("/api/admin/delivery-zone").then(r => r.json()).then(d => {
       if (d.lat) {
         setZone({ lat: d.lat, lng: d.lng, radiusKm: d.radiusKm ?? 5 });
-        setTimeout(() => mapRef.current?.flyTo([d.lat, d.lng], 12), 300);
+        setFlyTarget([d.lat, d.lng]);
       }
     }).catch(() => {});
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   const handleSave = () => {
@@ -73,6 +129,17 @@ export default function Delivery() {
     } catch {}
     setZoneSaving(false);
   };
+
+  const handleSelectAddress = (result: NominatimResult) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    setZone(z => ({ ...z, lat, lng }));
+    setFlyTarget([lat, lng]);
+    addressSearch.clear();
+    setShowResults(false);
+  };
+
+  const mapCenter: [number, number] = zone.lat && zone.lng ? [zone.lat, zone.lng] : [41.2995, 69.2401];
 
   return (
     <div className="space-y-5 max-w-lg">
@@ -109,20 +176,65 @@ export default function Delivery() {
           <h3 className="font-bold flex items-center gap-2">Yetkazib berish zonasi</h3>
           <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1.5">
             <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" />
-            Xaritaga bosib markaz qo'ying, slider bilan radius belgilang. Doiradan tashqarida buyurtma berib bo'lmaydi.
+            Manzil qidiring yoki xaritaga bosib markaz qo'ying. Slider bilan radius belgilang.
           </p>
+        </div>
+
+        {/* Address search */}
+        <div ref={searchRef} className="relative">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={addressSearch.query}
+              onChange={e => { addressSearch.search(e.target.value); setShowResults(true); }}
+              onFocus={() => addressSearch.results.length > 0 && setShowResults(true)}
+              placeholder="Manzilni qidiring... (masalan: Chilonzor, Toshkent)"
+              className="rounded-xl pl-9 pr-9 h-11"
+            />
+            {addressSearch.query && (
+              <button
+                onClick={() => { addressSearch.clear(); setShowResults(false); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Suggestions dropdown */}
+          {showResults && (addressSearch.results.length > 0 || addressSearch.loading) && (
+            <div className="absolute top-full left-0 right-0 z-[500] mt-1 bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+              {addressSearch.loading ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Qidirilmoqda...
+                </div>
+              ) : (
+                addressSearch.results.map(result => (
+                  <button
+                    key={result.place_id}
+                    onClick={() => handleSelectAddress(result)}
+                    className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-muted/60 transition-colors border-b border-border/50 last:border-0"
+                  >
+                    <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <span className="text-sm line-clamp-2">{result.display_name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         {/* Interactive map */}
         <div className="rounded-2xl overflow-hidden border border-border" style={{ height: 320 }}>
           <MapContainer
-            center={[zone.lat ?? 41.2995, zone.lng ?? 69.2401]}
+            center={mapCenter}
             zoom={11}
             className="w-full h-full"
-            ref={mapRef}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <ZoneClickHandler onMapClick={(lat, lng) => setZone(z => ({ ...z, lat, lng }))} />
+            <ZoneClickHandler onMapClick={(lat, lng) => { setZone(z => ({ ...z, lat, lng })); setFlyTarget([lat, lng]); }} />
+            <FlyTo target={flyTarget} />
             {zone.lat && zone.lng && (
               <>
                 <Marker position={[zone.lat, zone.lng]} />
@@ -137,11 +249,12 @@ export default function Delivery() {
         </div>
 
         {!zone.lat && (
-          <p className="text-center text-sm text-muted-foreground">Xaritaga bosing — markaz o'rnatiladi</p>
+          <p className="text-center text-sm text-muted-foreground">Manzil qidiring yoki xaritaga bosing</p>
         )}
 
         {zone.lat && zone.lng && (
-          <div className="bg-primary/5 rounded-xl px-3 py-2 text-xs text-primary font-medium">
+          <div className="bg-primary/5 rounded-xl px-3 py-2 text-xs text-primary font-medium flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5" />
             Markaz: {zone.lat.toFixed(5)}, {zone.lng.toFixed(5)}
           </div>
         )}

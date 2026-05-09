@@ -78,6 +78,51 @@ router.post("/messages", async (req, res): Promise<void> => {
   res.status(201).json(serialize(message));
 });
 
+// Admin: get grouped chat list
+router.get("/admin/messages", async (req, res): Promise<void> => {
+  const messages = await db.select({
+    id: messagesTable.id,
+    customerId: messagesTable.customerId,
+    senderType: messagesTable.senderType,
+    text: messagesTable.text,
+    isRead: messagesTable.isRead,
+    createdAt: messagesTable.createdAt,
+    customerName: customersTable.name,
+    customerPhone: customersTable.phone,
+  })
+    .from(messagesTable)
+    .innerJoin(customersTable, eq(messagesTable.customerId, customersTable.id))
+    .orderBy(messagesTable.createdAt);
+
+  // Group by customer
+  const map = new Map<number, any>();
+  for (const m of messages) {
+    if (!map.has(m.customerId)) {
+      map.set(m.customerId, {
+        customerId: m.customerId,
+        customerName: m.customerName,
+        customerPhone: m.customerPhone,
+        messages: [],
+        unreadCount: 0,
+        lastMessage: null,
+      });
+    }
+    const chat = map.get(m.customerId)!;
+    const serialized = { ...m, createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt };
+    chat.messages.push(serialized);
+    chat.lastMessage = serialized;
+    if (!m.isRead && m.senderType === "customer") chat.unreadCount++;
+  }
+  res.json(Array.from(map.values()));
+});
+
+// Admin: delete a customer's entire chat
+router.delete("/admin/messages/:customerId", async (req, res): Promise<void> => {
+  const cid = parseInt(req.params.customerId, 10);
+  await db.delete(messagesTable).where(eq(messagesTable.customerId, cid));
+  res.json({ success: true });
+});
+
 router.delete("/messages", async (req, res): Promise<void> => {
   const customerId = (req as any).customerId;
   const queryCustomerId = req.query.customerId ? parseInt(req.query.customerId as string, 10) : null;
