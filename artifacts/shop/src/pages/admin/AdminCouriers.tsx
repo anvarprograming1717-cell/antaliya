@@ -68,7 +68,7 @@ function CourierMapModal({ courier, onClose }: { courier: any; onClose: () => vo
   );
 }
 
-const emptyForm = { name: "", phone: "", username: "", password: "", isActive: true };
+const emptyForm = { name: "", phone: "", username: "", password: "", telegramId: "", isActive: true };
 
 export default function AdminCouriers() {
   const qc = useQueryClient();
@@ -88,7 +88,7 @@ export default function AdminCouriers() {
   const resetForm = () => { setForm(emptyForm); setEditId(null); setShowForm(false); setError(""); };
 
   const handleEdit = (c: any) => {
-    setForm({ name: c.name, phone: c.phone, username: c.username, password: "", isActive: c.isActive });
+    setForm({ name: c.name, phone: c.phone, username: c.username, password: "", telegramId: c.telegramId || "", isActive: c.isActive });
     setEditId(c.id);
     setShowForm(true);
   };
@@ -104,7 +104,7 @@ export default function AdminCouriers() {
       return;
     }
     if (editId) {
-      const data: any = { name: form.name, phone: form.phone, username: form.username, isActive: form.isActive };
+      const data: any = { name: form.name, phone: form.phone, username: form.username, isActive: form.isActive, telegramId: form.telegramId || null };
       if (form.password) data.password = form.password;
       updateCourier.mutate(
         { id: editId, data },
@@ -118,7 +118,7 @@ export default function AdminCouriers() {
       );
     } else {
       createCourier.mutate(
-        { data: { name: form.name, phone: form.phone, username: form.username, password: form.password, isActive: form.isActive } },
+        { data: { name: form.name, phone: form.phone, username: form.username, password: form.password, isActive: form.isActive, telegramId: form.telegramId || undefined } },
         {
           onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["/api/couriers"] });
@@ -182,7 +182,14 @@ export default function AdminCouriers() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <Input
+                value={form.telegramId}
+                onChange={(e) => setForm(f => ({ ...f, telegramId: e.target.value }))}
+                placeholder="Telegram ID (ixtiyoriy)"
+                className="rounded-xl col-span-2"
+              />
             </div>
+            <p className="text-xs text-muted-foreground -mt-1">Telegram ID — kuryer tayinlanganda habar yuborish uchun. Kuryerdan /start yuboritib, ID raqamini oling.</p>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"

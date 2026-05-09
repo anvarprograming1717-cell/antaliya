@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, MapPin, Navigation, Package, CheckCircle, Navigation2, Bike, Clock } from "lucide-react";
+import { LogOut, MapPin, Navigation, Package, CheckCircle, Navigation2, Bike, Clock, BatteryCharging } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
@@ -102,7 +102,12 @@ export default function CourierApp() {
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [accepting, setAccepting] = useState<number | null>(null);
   const [delivering, setDelivering] = useState<number | null>(null);
-  const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // GPS refs — use watchPosition for continuous tracking
+  const watchIdRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<any>(null);
+  // Throttle: only send to server if 5s passed or moved >20m
+  const lastSentRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
   const fetchOrders = async (courierId: number) => {
     setOrdersLoading(true);
@@ -122,12 +127,43 @@ export default function CourierApp() {
   useEffect(() => {
     if (session) {
       fetchOrders(session.id);
-      const interval = setInterval(() => fetchOrders(session.id), 15000);
+      const interval = setInterval(() => fetchOrders(session.id), 12000);
       return () => clearInterval(interval);
     }
   }, [session?.id]);
 
+  // Re-acquire Wake Lock when tab becomes visible again
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState === "visible" && sharing && "wakeLock" in navigator) {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+        } catch (_) {}
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [sharing]);
+
+  // Haversine distance in metres
+  function distanceMetres(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
   const sendLocation = (courierId: number, lat: number, lng: number) => {
+    const now = Date.now();
+    const last = lastSentRef.current;
+    // Only send if 5s passed or moved more than 20 metres
+    if (last) {
+      const moved = distanceMetres(last.lat, last.lng, lat, lng);
+      if (now - last.time < 5000 && moved < 20) return;
+    }
+    lastSentRef.current = { lat, lng, time: now };
     fetch("/api/courier/location", {
       method: "PATCH",
       headers: {
@@ -138,6 +174,21 @@ export default function CourierApp() {
     }).catch(() => {});
   };
 
+  const acquireWakeLock = async () => {
+    if ("wakeLock" in navigator) {
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+      } catch (_) {}
+    }
+  };
+
+  const releaseWakeLock = () => {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release().catch(() => {});
+      wakeLockRef.current = null;
+    }
+  };
+
   const startSharing = () => {
     if (!session) return;
     setLocationError("");
@@ -145,28 +196,41 @@ export default function CourierApp() {
       setLocationError("Qurilmangiz GPS-ni qo'llab-quvvatlamaydi");
       return;
     }
-    navigator.geolocation.getCurrentPosition(
+
+    // Acquire wake lock to keep screen/JS running
+    acquireWakeLock();
+
+    // Use watchPosition — continuous tracking, works in background
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         sendLocation(session.id, pos.coords.latitude, pos.coords.longitude);
         setSharing(true);
-        locationIntervalRef.current = setInterval(() => {
-          navigator.geolocation.getCurrentPosition(
-            (p) => sendLocation(session.id, p.coords.latitude, p.coords.longitude),
-            () => {}
-          );
-        }, 8000);
+        setLocationError("");
       },
-      () => {
-        setLocationError("GPS ruxsati berilmadi. Qurilma sozlamalarini tekshiring.");
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocationError("GPS ruxsati berilmadi. Qurilma sozlamalarini tekshiring.");
+          stopSharing();
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 2000,
+        timeout: 15000,
       }
     );
+
+    watchIdRef.current = watchId;
+    setSharing(true);
   };
 
   const stopSharing = () => {
-    if (locationIntervalRef.current) {
-      clearInterval(locationIntervalRef.current);
-      locationIntervalRef.current = null;
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
     }
+    releaseWakeLock();
+    lastSentRef.current = null;
     setSharing(false);
   };
 
@@ -180,7 +244,6 @@ export default function CourierApp() {
       });
       if (res.ok) {
         await fetchOrders(session.id);
-        // Auto-start GPS sharing when accepting an order
         if (!sharing) startSharing();
       }
     } catch {}
@@ -307,6 +370,12 @@ export default function CourierApp() {
                 <p className="font-semibold text-sm">
                   {sharing ? "GPS faol — mijozlar ko'rmoqda" : "GPS o'chirilgan"}
                 </p>
+                {sharing && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <BatteryCharging className="w-3 h-3 text-green-600" />
+                    <p className="text-xs text-green-600">Ekran bloklanganida ham ishlaydi</p>
+                  </div>
+                )}
                 {locationError && <p className="text-xs text-destructive mt-0.5">{locationError}</p>}
               </div>
             </div>

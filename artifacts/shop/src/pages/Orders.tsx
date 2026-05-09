@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, Package, MapPin, X, Trash2, Phone, Navigation2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useListOrders, getListOrdersQueryKey, useDeleteOrder } from "@workspace/api-client-react";
@@ -10,7 +10,6 @@ import { getCustomerSession } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
-// Courier scooter icon
 const courierIcon = L.divIcon({
   html: `<div style="
     width:50px;height:50px;border-radius:50%;
@@ -56,24 +55,72 @@ const deliveryIcon = L.divIcon({
   iconAnchor: [18, 36],
 });
 
-function MovingMarker({ position }: { position: [number, number] }) {
+// Smooth animated marker: interpolates from old position to new over ANIM_MS
+const ANIM_MS = 3500;
+
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+function SmoothMovingMarker({ position }: { position: [number, number] }) {
   const map = useMap();
   const markerRef = useRef<L.Marker | null>(null);
+  const currentPosRef = useRef<[number, number]>(position);
+  const targetPosRef = useRef<[number, number]>(position);
+  const animStartRef = useRef<number>(0);
+  const animFromRef = useRef<[number, number]>(position);
+  const rafRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    if (!markerRef.current) {
-      markerRef.current = L.marker(position, { icon: courierIcon }).addTo(map);
-    } else {
-      markerRef.current.setLatLng(position);
-      map.panTo(position, { animate: true, duration: 0.8 });
-    }
-    return () => { if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; } };
+    mountedRef.current = true;
+    markerRef.current = L.marker(position, { icon: courierIcon }).addTo(map);
+    currentPosRef.current = position;
+    targetPosRef.current = position;
+    map.setView(position, 15, { animate: false });
+    return () => {
+      mountedRef.current = false;
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
+    };
   }, []);
 
   useEffect(() => {
-    if (markerRef.current) {
-      markerRef.current.setLatLng(position);
-    }
+    if (!markerRef.current) return;
+    const [tLat, tLng] = position;
+    const [cLat, cLng] = currentPosRef.current;
+
+    // Skip tiny noise (< 0.5m)
+    const dlat = Math.abs(tLat - cLat);
+    const dlng = Math.abs(tLng - cLng);
+    if (dlat < 0.000005 && dlng < 0.000005) return;
+
+    // Cancel previous animation and start from current interpolated position
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    animFromRef.current = [...currentPosRef.current] as [number, number];
+    targetPosRef.current = [tLat, tLng];
+    animStartRef.current = performance.now();
+
+    const animate = (now: number) => {
+      if (!mountedRef.current || !markerRef.current) return;
+      const elapsed = now - animStartRef.current;
+      const progress = Math.min(elapsed / ANIM_MS, 1);
+      const eased = easeInOut(progress);
+
+      const lat = animFromRef.current[0] + (targetPosRef.current[0] - animFromRef.current[0]) * eased;
+      const lng = animFromRef.current[1] + (targetPosRef.current[1] - animFromRef.current[1]) * eased;
+      currentPosRef.current = [lat, lng];
+      markerRef.current.setLatLng([lat, lng]);
+      map.panTo([lat, lng], { animate: false });
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(animate);
+      } else {
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
   }, [position[0], position[1]]);
 
   return null;
@@ -87,7 +134,7 @@ function CourierTrackingMap({ order, onClose }: { order: any; onClose: () => voi
   const courierLng = liveOrder.courierLng;
   const hasCourierLoc = !!(courierLat && courierLng);
 
-  // Live polling every 5 seconds
+  // Live polling every 4 seconds
   useEffect(() => {
     const fetchOrder = async () => {
       try {
@@ -98,7 +145,7 @@ function CourierTrackingMap({ order, onClose }: { order: any; onClose: () => voi
         }
       } catch {}
     };
-    intervalRef.current = setInterval(fetchOrder, 5000);
+    intervalRef.current = setInterval(fetchOrder, 4000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [order.id]);
 
@@ -173,9 +220,11 @@ function CourierTrackingMap({ order, onClose }: { order: any; onClose: () => voi
         <div style={{ height: 320 }}>
           <MapContainer center={mapCenter} zoom={15} className="w-full h-full" zoomControl={false}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {hasCourierLoc && <MovingMarker position={[courierLat, courierLng]} />}
-            {liveOrder.address && !hasCourierLoc && (
-              <Marker position={mapCenter} icon={deliveryIcon} />
+            {hasCourierLoc && (
+              <SmoothMovingMarker position={[courierLat, courierLng]} />
+            )}
+            {!hasCourierLoc && liveOrder.address && (
+              <AddressMarker address={liveOrder.address} center={mapCenter} />
             )}
           </MapContainer>
         </div>
@@ -190,6 +239,15 @@ function CourierTrackingMap({ order, onClose }: { order: any; onClose: () => voi
       </motion.div>
     </div>
   );
+}
+
+function AddressMarker({ address, center }: { address: string; center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    const marker = L.marker(center, { icon: deliveryIcon }).addTo(map);
+    return () => { marker.remove(); };
+  }, [center[0], center[1]]);
+  return null;
 }
 
 function DeleteOrderModal({ orderId, onConfirm, onCancel, isPending }: { orderId: number; onConfirm: () => void; onCancel: () => void; isPending: boolean }) {
@@ -239,7 +297,7 @@ export default function Orders() {
 
   const { data: orders, isLoading } = useListOrders(
     { customerId: session?.id },
-    { query: { queryKey: getListOrdersQueryKey({ customerId: session?.id }), refetchInterval: 15000 } }
+    { query: { queryKey: getListOrdersQueryKey({ customerId: session?.id }), refetchInterval: 12000 } }
   );
   const deleteOrder = useDeleteOrder();
 

@@ -7,6 +7,7 @@ export const couriersTable = pgTable("couriers", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  telegramId: text("telegram_id"),
   lat: numeric("lat", { precision: 10, scale: 7 }),
   lng: numeric("lng", { precision: 10, scale: 7 }),
   locationUpdatedAt: timestamp("location_updated_at", { withTimezone: true }),

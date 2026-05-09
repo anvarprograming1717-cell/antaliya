@@ -21,7 +21,7 @@ router.get("/couriers", async (_req, res): Promise<void> => {
 });
 
 router.post("/couriers", async (req, res): Promise<void> => {
-  const { name, phone, username, password, isActive } = req.body;
+  const { name, phone, username, password, isActive, telegramId } = req.body;
   if (!name || !phone || !username || !password) {
     res.status(400).json({ error: "name, phone, username, password required" });
     return;
@@ -37,19 +37,21 @@ router.post("/couriers", async (req, res): Promise<void> => {
     username,
     password,
     isActive: isActive !== undefined ? isActive : true,
+    telegramId: telegramId || null,
   }).returning();
   res.status(201).json(serializeCourier(courier));
 });
 
 router.patch("/couriers/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
-  const { name, phone, username, password, isActive } = req.body;
+  const { name, phone, username, password, isActive, telegramId } = req.body;
   const updates: any = {};
   if (name !== undefined) updates.name = name;
   if (phone !== undefined) updates.phone = phone;
   if (username !== undefined) updates.username = username;
   if (password !== undefined) updates.password = password;
   if (isActive !== undefined) updates.isActive = isActive;
+  if (telegramId !== undefined) updates.telegramId = telegramId || null;
   const [updated] = await db.update(couriersTable).set(updates).where(eq(couriersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(serializeCourier(updated));

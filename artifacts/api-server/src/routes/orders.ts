@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable, promoCodesTable, promoCodeUsagesTable } from "@workspace/db";
-import { sendTelegramToAdmins, sendTelegramToChefs, sendTelegramToCouriers, sendTelegramToCustomer } from "../telegram.js";
+import { sendTelegramToAdmins, sendTelegramToChefs, sendTelegramToCouriers, sendTelegramToCourier, sendTelegramToCustomer } from "../telegram.js";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -293,6 +293,17 @@ router.patch("/orders/:id/assign-courier", async (req, res): Promise<void> => {
     return;
   }
   const enriched = await enrichOrder(order);
+
+  // Notify the specific courier via Telegram if they have a telegramId
+  if (courierId) {
+    const [courier] = await db.select().from(couriersTable).where(eq(couriersTable.id, courierId)).limit(1);
+    if (courier?.telegramId) {
+      const deliveryLabel = order.address ? `📍 ${order.address}` : "Olib ketish";
+      const msg = `🚚 <b>Yangi buyurtma sizga tayinlandi!</b>\n\n📦 Buyurtma #${order.id}\n${deliveryLabel}\n💰 ${enriched.totalPrice.toLocaleString()} so'm\n\nBuyurtmani olib ketish vaqti!`;
+      sendTelegramToCourier(courier.telegramId, msg).catch(() => {});
+    }
+  }
+
   res.json(enriched);
 });
 
