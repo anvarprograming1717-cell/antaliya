@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable, promoCodesTable, promoCodeUsagesTable } from "@workspace/db";
-import { sendTelegramToAdmins } from "../telegram.js";
+import { sendTelegramToAdmins, sendTelegramToChefs, sendTelegramToCouriers, sendTelegramToCustomer } from "../telegram.js";
 import {
   ListOrdersQueryParams,
   CreateOrderBody,
@@ -37,6 +37,7 @@ async function enrichOrder(order: any) {
     createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
     customerName: customer[0]?.name ?? null,
     customerPhone: customer[0]?.phone ?? null,
+    customerTelegramId: customer[0]?.telegramId ?? null,
     courierId: order.courierId ?? null,
     courierName: courierData.name ?? null,
     courierPhone: courierData.phone ?? null,
@@ -113,7 +114,6 @@ router.post("/orders", async (req, res): Promise<void> => {
     ? parseFloat(feeStr)
     : 0;
 
-  // Handle promo code
   let discountAmount = 0;
   let appliedPromoCode: string | null = null;
   if (parsed.data.promoCode) {
@@ -156,33 +156,22 @@ router.post("/orders", async (req, res): Promise<void> => {
     price: item.product.price,
   })));
 
-  // Mark promo code as used
   if (appliedPromoCode) {
     const [promo] = await db.select().from(promoCodesTable).where(eq(promoCodesTable.code, appliedPromoCode)).limit(1);
     if (promo) {
-      await db.insert(promoCodeUsagesTable).values({
-        promoCodeId: promo.id,
-        customerId,
-        orderId: order.id,
-      });
-      await db.update(promoCodesTable)
-        .set({ usedCount: promo.usedCount + 1 })
-        .where(eq(promoCodesTable.id, promo.id));
+      await db.insert(promoCodeUsagesTable).values({ promoCodeId: promo.id, customerId, orderId: order.id });
+      await db.update(promoCodesTable).set({ usedCount: promo.usedCount + 1 }).where(eq(promoCodesTable.id, promo.id));
     }
   }
 
-  // Save address to customer profile
   if (parsed.data.address && parsed.data.deliveryMethod === "delivery") {
-    await db.update(customersTable)
-      .set({ savedAddress: parsed.data.address })
-      .where(eq(customersTable.id, customerId));
+    await db.update(customersTable).set({ savedAddress: parsed.data.address }).where(eq(customersTable.id, customerId));
   }
 
   await db.delete(cartTable).where(eq(cartTable.customerId, customerId));
 
   const enriched = await enrichOrder(order);
 
-  // Telegram notification to admins
   const customer = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
   const customerName = customer[0]?.name ?? "Noma'lum";
   const customerPhone = customer[0]?.phone ?? "";
@@ -191,6 +180,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   const itemLines = enriched.items.map((i: any) => `  • ${i.productName} × ${i.quantity}`).join("\n");
   const tgText = `🛒 <b>Yangi buyurtma #${order.id}</b>\n👤 ${customerName} (${customerPhone})\n💰 ${enriched.totalPrice.toLocaleString()} so'm\n🚚 ${deliveryLabel} | 💳 ${paymentLabel}${parsed.data.address ? `\n📍 ${parsed.data.address}` : ""}${parsed.data.note ? `\n📝 ${parsed.data.note}` : ""}\n\n${itemLines}`;
   sendTelegramToAdmins(tgText).catch(() => {});
+  sendTelegramToChefs(tgText).catch(() => {});
 
   res.status(201).json(enriched);
 });
@@ -230,6 +220,25 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
     return;
   }
   const enriched = await enrichOrder(order);
+
+  const customerTelegramId = enriched.customerTelegramId as string | null;
+  const statusMessages: Record<string, string> = {
+    preparing: `🍳 <b>Buyurtma #${order.id} tayyorlanmoqda</b>\n\nSizning buyurtmangiz qabul qilindi va tayyorlanmoqda. Iltimos kuting!`,
+    ready: `✅ <b>Buyurtma #${order.id} tayyor!</b>\n\nSizning buyurtmangiz tayyor. Tez orada yetkazib beriladi!`,
+    delivering: `🚚 <b>Buyurtma #${order.id} yetkazilmoqda</b>\n\nKuryer yo'lda! Tez orada yetib keladi.`,
+    delivered: `🎉 <b>Buyurtma #${order.id} yetkazildi!</b>\n\nBuyurtmangizni qabul qildingizmi? Xarid uchun rahmat!`,
+    cancelled: `❌ <b>Buyurtma #${order.id} bekor qilindi</b>\n\nAfsuski, buyurtmangiz bekor qilindi.`,
+  };
+
+  if (customerTelegramId && statusMessages[parsed.data.status]) {
+    sendTelegramToCustomer(customerTelegramId, statusMessages[parsed.data.status]).catch(() => {});
+  }
+
+  if (parsed.data.status === "ready") {
+    const courierText = `📦 <b>Buyurtma #${order.id} tayyor!</b>\n👤 ${enriched.customerName ?? "Noma'lum"} (${enriched.customerPhone ?? ""})\n📍 ${enriched.address ?? "Olib ketish"}\n💰 ${enriched.totalPrice.toLocaleString()} so'm\n\nBuyurtmani olib ketish vaqti!`;
+    sendTelegramToCouriers(courierText).catch(() => {});
+  }
+
   res.json(enriched);
 });
 
@@ -252,7 +261,6 @@ router.delete("/orders/:id/delete", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
 
-// ── Admin routes ──────────────────────────────────────────────────────────────
 router.get("/admin/orders", async (req, res): Promise<void> => {
   const { status } = req.query as { status?: string };
   let conditions: any[] = [];

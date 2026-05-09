@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, messagesTable, customersTable } from "@workspace/db";
-import { sendTelegramToAdmins } from "../telegram.js";
+import { sendTelegramToAdmins, sendTelegramToChefs, sendTelegramToCustomer } from "../telegram.js";
 import {
   ListMessagesQueryParams,
   MarkMessagesReadBody,
@@ -58,14 +58,21 @@ router.post("/messages", async (req, res): Promise<void> => {
     mediaType: mediaType ?? null,
   }).returning();
 
-  // Telegram notification to admins only when customer sends a message
+  const customer = await db.select().from(customersTable).where(eq(customersTable.id, msgCustomerId)).limit(1);
+  const customerName = customer[0]?.name ?? "Noma'lum";
+  const customerPhone = customer[0]?.phone ?? "";
+  const customerTelegramId = customer[0]?.telegramId ?? null;
+
   if (senderType === "customer") {
-    const customer = await db.select().from(customersTable).where(eq(customersTable.id, msgCustomerId)).limit(1);
-    const customerName = customer[0]?.name ?? "Noma'lum";
-    const customerPhone = customer[0]?.phone ?? "";
     const preview = text ? (text.length > 100 ? text.slice(0, 100) + "…" : text) : (mediaType === "image" ? "🖼 Rasm yuborildi" : "📎 Fayl yuborildi");
     const tgText = `💬 <b>Yangi xabar</b>\n👤 ${customerName} (${customerPhone})\n\n${preview}`;
     sendTelegramToAdmins(tgText).catch(() => {});
+    sendTelegramToChefs(tgText).catch(() => {});
+  }
+
+  if (senderType === "admin" && customerTelegramId) {
+    const replyText = `💬 <b>Qo'llab-quvvatlash xabari</b>\n\n${text ?? ""}`;
+    sendTelegramToCustomer(customerTelegramId, replyText).catch(() => {});
   }
 
   res.status(201).json(serialize(message));

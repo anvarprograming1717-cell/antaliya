@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon, Send, Plus, Trash2, Calendar, ChefHat } from "lucide-react";
+import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon, Send, Plus, Trash2, Calendar, ChefHat, Bot, Link, UserCog, Truck, Webhook } from "lucide-react";
 import {
   useGetSupportContact, getGetSupportContactQueryKey, useUpdateSupportContact,
   useUpdateAdminPassword, useGetSiteSettings, getGetSiteSettingsQueryKey, useUpdateSiteSettings,
@@ -8,6 +8,71 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+function TgRoleSection({
+  title, description, icon: Icon, iconColor, endpoint, idKey,
+}: {
+  title: string; description: string; icon: any; iconColor: string; endpoint: string; idKey: string;
+}) {
+  const [ids, setIds] = useState<string[]>([]);
+  const [newId, setNewId] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/admin/${endpoint}`).then(r => r.json()).then(d => setIds(d[idKey] || [])).catch(() => {});
+  }, [endpoint, idKey]);
+
+  const handleAdd = () => {
+    const id = newId.trim();
+    if (!id) return;
+    if (ids.includes(id)) { setNewId(""); return; }
+    setIds(prev => [...prev, id]);
+    setNewId("");
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await fetch(`/api/admin/${endpoint}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [idKey]: ids }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {}
+    setLoading(false);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Icon className={`w-5 h-5 ${iconColor}`} />
+        <h3 className="font-bold">{title}</h3>
+      </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+      <div className="space-y-2">
+        {ids.map(id => (
+          <div key={id} className="flex items-center justify-between bg-muted/40 rounded-xl px-3 py-2">
+            <span className="font-mono text-sm">{id}</span>
+            <button onClick={() => setIds(prev => prev.filter(a => a !== id))} className="text-destructive hover:text-destructive/80 p-1">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+        {ids.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">Hech kim qo'shilmagan</p>}
+      </div>
+      <div className="flex gap-2">
+        <Input value={newId} onChange={e => setNewId(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} placeholder="Telegram ID (214840221)" className="rounded-xl font-mono" type="number" />
+        <Button onClick={handleAdd} variant="outline" className="rounded-xl shrink-0"><Plus className="w-4 h-4" /></Button>
+      </div>
+      <Button onClick={handleSave} disabled={loading} className={`w-full rounded-xl ${saved ? "bg-green-600 hover:bg-green-600" : ""}`}>
+        {saved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}
+      </Button>
+    </motion.div>
+  );
+}
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -24,125 +89,76 @@ export default function Settings() {
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [siteSaved, setSiteSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
-  const [tgAdminIds, setTgAdminIds] = useState<number[]>([]);
-  const [newTgId, setNewTgId] = useState("");
-  const [tgSaved, setTgSaved] = useState(false);
-  const [tgLoading, setTgLoading] = useState(false);
   const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
   const [workDaysSaved, setWorkDaysSaved] = useState(false);
   const [workDaysLoading, setWorkDaysLoading] = useState(false);
-
-  // Chef password
   const [chefPassword, setChefPassword] = useState("");
   const [chefConfirm, setChefConfirm] = useState("");
   const [chefSaved, setChefSaved] = useState(false);
   const [chefSaving, setChefSaving] = useState(false);
   const [chefError, setChefError] = useState("");
 
+  const [botToken, setBotToken] = useState("");
+  const [botSiteUrl, setBotSiteUrl] = useState("");
+  const [botDeliveryUrl, setBotDeliveryUrl] = useState("");
+  const [botSaved, setBotSaved] = useState(false);
+  const [botSaving, setBotSaving] = useState(false);
+
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookResult, setWebhookResult] = useState<{ success: boolean; msg: string } | null>(null);
+  const [webhookLoading, setWebhookLoading] = useState(false);
+
   useEffect(() => {
-    fetch("/api/admin/telegram-admins").then(r => r.json()).then(d => setTgAdminIds(d.adminIds || [])).catch(() => {});
     fetch("/api/admin/work-schedule").then(r => r.json()).then(d => setWorkDays(d.workDays || [1, 2, 3, 4, 5, 6])).catch(() => {});
+    fetch("/api/admin/bot-settings").then(r => r.json()).then(d => {
+      setBotToken(d.botToken || "");
+      setBotSiteUrl(d.siteUrl || "");
+      setBotDeliveryUrl(d.deliveryUrl || "");
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (contact) {
-      setContactForm({ phone: contact.phone, telegram: contact.telegram || "" });
-    }
+    if (contact) setContactForm({ phone: contact.phone, telegram: contact.telegram || "" });
   }, [contact]);
 
   useEffect(() => {
-    if (siteSettings) {
-      setSiteForm({ siteName: siteSettings.siteName || "", logoUrl: siteSettings.logoUrl || "" });
-    }
+    if (siteSettings) setSiteForm({ siteName: siteSettings.siteName || "", logoUrl: siteSettings.logoUrl || "" });
   }, [siteSettings]);
 
   const handleSaveContact = () => {
     updateContact.mutate(
       { data: { phone: contactForm.phone, telegram: contactForm.telegram || undefined } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetSupportContactQueryKey() });
-          setContactSaved(true);
-          setTimeout(() => setContactSaved(false), 2000);
-        },
-      }
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetSupportContactQueryKey() }); setContactSaved(true); setTimeout(() => setContactSaved(false), 2000); } }
     );
   };
 
   const handleSaveSite = () => {
     updateSite.mutate(
       { data: { siteName: siteForm.siteName || null, logoUrl: siteForm.logoUrl || null } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetSiteSettingsQueryKey() });
-          setSiteSaved(true);
-          setTimeout(() => setSiteSaved(false), 2000);
-        },
-      }
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetSiteSettingsQueryKey() }); setSiteSaved(true); setTimeout(() => setSiteSaved(false), 2000); } }
     );
   };
 
   const handleSavePassword = () => {
     setPasswordError("");
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError("Yangi parollar mos kelmadi");
-      return;
-    }
-    if (passwordForm.newPassword.length < 4) {
-      setPasswordError("Parol kamida 4 ta belgidan iborat bo'lishi kerak");
-      return;
-    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) { setPasswordError("Yangi parollar mos kelmadi"); return; }
+    if (passwordForm.newPassword.length < 4) { setPasswordError("Parol kamida 4 ta belgidan iborat bo'lishi kerak"); return; }
     updatePassword.mutate(
       { data: { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword } },
       {
-        onSuccess: () => {
-          setPasswordSaved(true);
-          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-          setTimeout(() => setPasswordSaved(false), 2000);
-        },
-        onError: () => {
-          setPasswordError("Joriy parol noto'g'ri");
-        },
+        onSuccess: () => { setPasswordSaved(true); setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); setTimeout(() => setPasswordSaved(false), 2000); },
+        onError: () => setPasswordError("Joriy parol noto'g'ri"),
       }
     );
   };
 
-  const handleAddTgAdmin = () => {
-    const id = parseInt(newTgId.trim());
-    if (isNaN(id) || id <= 0) return;
-    if (tgAdminIds.includes(id)) { setNewTgId(""); return; }
-    setTgAdminIds(prev => [...prev, id]);
-    setNewTgId("");
-  };
-
-  const handleRemoveTgAdmin = (id: number) => setTgAdminIds(prev => prev.filter(a => a !== id));
-
   const handleSaveWorkDays = async () => {
     setWorkDaysLoading(true);
     try {
-      await fetch("/api/admin/work-schedule", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workDays }),
-      });
-      setWorkDaysSaved(true);
-      setTimeout(() => setWorkDaysSaved(false), 2000);
+      await fetch("/api/admin/work-schedule", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workDays }) });
+      setWorkDaysSaved(true); setTimeout(() => setWorkDaysSaved(false), 2000);
     } catch {}
     setWorkDaysLoading(false);
-  };
-
-  const handleSaveTgAdmins = async () => {
-    setTgLoading(true);
-    try {
-      await fetch("/api/admin/telegram-admins", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminIds: tgAdminIds }),
-      });
-      setTgSaved(true);
-      setTimeout(() => setTgSaved(false), 2000);
-    } catch {}
-    setTgLoading(false);
   };
 
   const handleSaveChefPassword = async () => {
@@ -152,23 +168,40 @@ export default function Settings() {
     if (chefPassword !== chefConfirm) { setChefError("Parollar mos kelmadi"); return; }
     setChefSaving(true);
     try {
-      const r = await fetch("/api/admin/chef-password", {
+      const r = await fetch("/api/admin/chef-password", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: chefPassword }) });
+      if (r.ok) { setChefSaved(true); setChefPassword(""); setChefConfirm(""); setTimeout(() => setChefSaved(false), 2000); }
+      else setChefError("Xato yuz berdi");
+    } catch { setChefError("Server bilan aloqa yo'q"); }
+    setChefSaving(false);
+  };
+
+  const handleSaveBotSettings = async () => {
+    setBotSaving(true);
+    try {
+      await fetch("/api/admin/bot-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: chefPassword }),
+        body: JSON.stringify({ botToken, siteUrl: botSiteUrl, deliveryUrl: botDeliveryUrl }),
       });
-      if (r.ok) {
-        setChefSaved(true);
-        setChefPassword("");
-        setChefConfirm("");
-        setTimeout(() => setChefSaved(false), 2000);
-      } else {
-        setChefError("Xato yuz berdi");
-      }
-    } catch {
-      setChefError("Server bilan aloqa yo'q");
-    }
-    setChefSaving(false);
+      setBotSaved(true); setTimeout(() => setBotSaved(false), 2000);
+    } catch {}
+    setBotSaving(false);
+  };
+
+  const handleSetupWebhook = async () => {
+    if (!webhookUrl.trim()) return;
+    setWebhookLoading(true);
+    setWebhookResult(null);
+    try {
+      const r = await fetch("/api/admin/setup-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookUrl: webhookUrl.trim() }),
+      });
+      const d = await r.json();
+      setWebhookResult({ success: d.success, msg: d.description || (d.success ? "Webhook o'rnatildi!" : "Xato") });
+    } catch { setWebhookResult({ success: false, msg: "Server bilan aloqa yo'q" }); }
+    setWebhookLoading(false);
   };
 
   return (
@@ -180,20 +213,18 @@ export default function Settings() {
         <h3 className="font-bold">Sayt brendingi</h3>
         <div>
           <label className="text-sm font-medium block mb-1">Sayt nomi</label>
-          <div className="relative">
-            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={siteForm.siteName} onChange={e => setSiteForm(f => ({ ...f, siteName: e.target.value }))} placeholder="ShopUz" className="pl-9 rounded-xl" data-testid="input-site-name" />
           </div>
         </div>
         <div>
           <label className="text-sm font-medium block mb-1">Logotip URL</label>
-          <div className="relative">
-            <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={siteForm.logoUrl} onChange={e => setSiteForm(f => ({ ...f, logoUrl: e.target.value }))} placeholder="https://example.com/logo.png" className="pl-9 rounded-xl" data-testid="input-logo-url" />
           </div>
           {siteForm.logoUrl && (
             <div className="mt-3 flex items-center gap-3">
-              <img src={siteForm.logoUrl} alt="Logo preview" className="w-12 h-12 rounded-xl object-contain border border-border bg-muted/30" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <img src={siteForm.logoUrl} alt="Logo" className="w-12 h-12 rounded-xl object-contain border border-border bg-muted/30" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
               <p className="text-xs text-muted-foreground">Logo ko'rinishi</p>
             </div>
           )}
@@ -208,15 +239,13 @@ export default function Settings() {
         <h3 className="font-bold">Texnik yordam kontakti</h3>
         <div>
           <label className="text-sm font-medium block mb-1">Telefon raqam</label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} className="pl-9 rounded-xl" data-testid="input-support-phone" />
           </div>
         </div>
         <div>
           <label className="text-sm font-medium block mb-1">Telegram username</label>
-          <div className="relative">
-            <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={contactForm.telegram} onChange={e => setContactForm(f => ({ ...f, telegram: e.target.value }))} placeholder="@username" className="pl-9 rounded-xl" data-testid="input-support-telegram" />
           </div>
         </div>
@@ -225,24 +254,81 @@ export default function Settings() {
         </Button>
       </motion.div>
 
-      {/* Chef Password */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+      {/* Telegram Bot Settings */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Bot className="w-5 h-5 text-blue-500" />
+          <h3 className="font-bold">Telegram bot sozlamalari</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">Bot token va tugmalar URL ni kiriting. Foydalanuvchi /start ni yuborganda saytga o'tish tugmalari ko'rsatiladi.</p>
+        <div>
+          <label className="text-sm font-medium block mb-1">Bot token</label>
+          <div className="relative"><Bot className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input value={botToken} onChange={e => setBotToken(e.target.value)} placeholder="123456789:AAF..." className="pl-9 rounded-xl font-mono text-xs" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">@BotFather dan olingan token</p>
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1">🛍 "Buyurtma berish" tugmasi URL</label>
+          <div className="relative"><Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input value={botSiteUrl} onChange={e => setBotSiteUrl(e.target.value)} placeholder="https://sizning-sayt.replit.app" className="pl-9 rounded-xl" />
+          </div>
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1">🚚 "Yetkazib berish" tugmasi URL</label>
+          <div className="relative"><Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input value={botDeliveryUrl} onChange={e => setBotDeliveryUrl(e.target.value)} placeholder="https://sizning-sayt.replit.app" className="pl-9 rounded-xl" />
+          </div>
+        </div>
+        <Button onClick={handleSaveBotSettings} disabled={botSaving} className={`w-full rounded-xl ${botSaved ? "bg-green-600 hover:bg-green-600" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
+          {botSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Bot sozlamalarini saqlash"}
+        </Button>
+      </motion.div>
+
+      {/* Webhook Setup */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Webhook className="w-5 h-5 text-purple-500" />
+          <h3 className="font-bold">Webhook ulash</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Telegram botni serverga ulash uchun webhook URL kiriting. Format: <code className="bg-muted px-1 rounded text-xs">https://your-domain.replit.app/api/telegram-webhook</code>
+        </p>
+        <div>
+          <label className="text-sm font-medium block mb-1">Webhook URL</label>
+          <Input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://your-app.replit.app/api/telegram-webhook" className="rounded-xl text-xs font-mono" />
+        </div>
+        {webhookResult && (
+          <div className={`p-3 rounded-xl text-sm ${webhookResult.success ? "bg-green-500/10 text-green-600" : "bg-destructive/10 text-destructive"}`}>
+            {webhookResult.success ? "✅" : "❌"} {webhookResult.msg}
+          </div>
+        )}
+        <Button onClick={handleSetupWebhook} disabled={webhookLoading || !webhookUrl.trim()} className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 text-white">
+          {webhookLoading ? "Ulanmoqda..." : "Webhookni ulash"}
+        </Button>
+      </motion.div>
+
+      {/* Telegram Roles */}
+      <TgRoleSection title="Telegram adminlar" description="Yangi buyurtmalar va xabarlar haqida bildirishnoma oladigan adminlar." icon={UserCog} iconColor="text-primary" endpoint="telegram-admins" idKey="adminIds" />
+      <TgRoleSection title="Telegram oshpazlar (chef)" description="Yangi buyurtmalar oshpazlarga Telegram botda keladi. Chef buyurtmani tayyorlashni boshlaydi." icon={ChefHat} iconColor="text-orange-500" endpoint="telegram-chefs" idKey="chefIds" />
+      <TgRoleSection title="Telegram kuryerlar" description="Buyurtma tayyor bo'lganda kuryerga Telegram botda xabar keladi." icon={Truck} iconColor="text-green-500" endpoint="telegram-couriers" idKey="courierIds" />
+
+      {/* Chef Panel Password */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
         <div className="flex items-center gap-2">
           <ChefHat className="w-5 h-5 text-orange-500" />
           <h3 className="font-bold">Chef panel paroli</h3>
         </div>
-        <p className="text-xs text-muted-foreground">Oshpaz /chef sahifasiga kirishi uchun parol. Standart parol: chef123</p>
+        <p className="text-xs text-muted-foreground">Oshpaz /chef sahifasiga kirishi uchun parol.</p>
         <div>
           <label className="text-sm font-medium block mb-1">Yangi parol</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input type="password" value={chefPassword} onChange={e => setChefPassword(e.target.value)} className="pl-9 rounded-xl" placeholder="Kamida 4 ta belgi" />
           </div>
         </div>
         <div>
           <label className="text-sm font-medium block mb-1">Parolni tasdiqlash</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input type="password" value={chefConfirm} onChange={e => setChefConfirm(e.target.value)} className="pl-9 rounded-xl" />
           </div>
         </div>
@@ -252,27 +338,24 @@ export default function Settings() {
         </Button>
       </motion.div>
 
-      {/* Change Admin Password */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+      {/* Admin Password */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
         <h3 className="font-bold">Admin parolini o'zgartirish</h3>
         <div>
           <label className="text-sm font-medium block mb-1">Joriy parol</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input type="password" value={passwordForm.currentPassword} onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))} className="pl-9 rounded-xl" data-testid="input-current-password" />
           </div>
         </div>
         <div>
           <label className="text-sm font-medium block mb-1">Yangi parol</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input type="password" value={passwordForm.newPassword} onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} className="pl-9 rounded-xl" data-testid="input-new-password" />
           </div>
         </div>
         <div>
           <label className="text-sm font-medium block mb-1">Yangi parolni tasdiqlash</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input type="password" value={passwordForm.confirmPassword} onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))} className="pl-9 rounded-xl" data-testid="input-confirm-password" />
           </div>
         </div>
@@ -282,35 +365,8 @@ export default function Settings() {
         </Button>
       </motion.div>
 
-      {/* Telegram Admin IDs */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Send className="w-5 h-5 text-primary" />
-          <h3 className="font-bold">Telegram adminlar</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">Yangi buyurtmalar haqida xabar oladigan Telegram ID lar.</p>
-        <div className="space-y-2">
-          {tgAdminIds.map(id => (
-            <div key={id} className="flex items-center justify-between bg-muted/40 rounded-xl px-3 py-2">
-              <span className="font-mono text-sm">{id}</span>
-              <button onClick={() => handleRemoveTgAdmin(id)} className="text-destructive hover:text-destructive/80 p-1">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-          {tgAdminIds.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">Admin qo'shilmagan</p>}
-        </div>
-        <div className="flex gap-2">
-          <Input value={newTgId} onChange={e => setNewTgId(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddTgAdmin()} placeholder="Telegram ID (214840221)" className="rounded-xl font-mono" type="number" />
-          <Button onClick={handleAddTgAdmin} variant="outline" className="rounded-xl shrink-0"><Plus className="w-4 h-4" /></Button>
-        </div>
-        <Button onClick={handleSaveTgAdmins} disabled={tgLoading} className={`w-full rounded-xl ${tgSaved ? "bg-green-600 hover:bg-green-600" : ""}`}>
-          {tgSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}
-        </Button>
-      </motion.div>
-
-      {/* Ish kunlari */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+      {/* Work Days */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
           <h3 className="font-bold">Ish kunlari</h3>
