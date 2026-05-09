@@ -51,6 +51,12 @@ export default function Checkout() {
   const [promoApplied, setPromoApplied] = useState<{ code: string; discountAmount: number } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
 
+  const [schedule, setSchedule] = useState<{ isOpen: boolean; nextWorkDay: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/work-schedule").then(r => r.json()).then(d => setSchedule(d)).catch(() => {});
+  }, []);
+
   const { data: cartItems } = useGetCart({ query: { queryKey: getGetCartQueryKey() } });
   const { data: me } = useGetMe();
   const { data: deliverySettings } = useGetDeliverySettings({ query: { queryKey: getGetDeliverySettingsQueryKey() } });
@@ -153,9 +159,10 @@ export default function Checkout() {
   };
 
   const isOutsideZone = !!zoneError;
-  const canOrder = deliveryMethod === "delivery"
+  const isShopClosed = schedule !== null && !schedule.isOpen;
+  const canOrder = !isShopClosed && (deliveryMethod === "delivery"
     ? !!(address.trim() && !isOutsideZone)
-    : true;
+    : true);
 
   const handleOrder = () => {
     if (!canOrder) return;
@@ -413,7 +420,25 @@ export default function Checkout() {
             </div>
           </div>
 
-          {isOutsideZone && (
+          {isShopClosed && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-start gap-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-2xl px-4 py-4"
+            >
+              <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-orange-700 dark:text-orange-400">Do'kon hozir yopiq</p>
+                <p className="text-sm text-orange-600 dark:text-orange-400 mt-0.5">
+                  {schedule?.nextWorkDay
+                    ? `Keyingi ish kuni: ${schedule.nextWorkDay}. O'sha kuni buyurtma bera olasiz.`
+                    : "Ish kunlari belgilanmagan. Iltimos keyinroq urinib ko'ring."}
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {isOutsideZone && !isShopClosed && (
             <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3">
               <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
               <p className="text-sm text-red-600 dark:text-red-400 font-medium">Manzil yetkazib berish zonasidan tashqarida. Buyurtma bera olmaysiz.</p>
@@ -423,11 +448,13 @@ export default function Checkout() {
           <Button
             onClick={handleOrder}
             disabled={createOrder.isPending || !canOrder}
-            className="w-full h-14 rounded-2xl text-base font-semibold"
+            className={`w-full h-14 rounded-2xl text-base font-semibold ${isShopClosed ? "opacity-60" : ""}`}
             data-testid="button-place-order"
           >
             {createOrder.isPending
               ? "Buyurtma berilmoqda..."
+              : isShopClosed
+              ? "Do'kon yopiq — buyurtma bo'lmaydi"
               : isOutsideZone
               ? "Zona tashqarisida — buyurtma bo'lmaydi"
               : `Buyurtma berish — ${total.toLocaleString()} so'm`}

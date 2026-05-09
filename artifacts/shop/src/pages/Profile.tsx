@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff } from "lucide-react";
+
 import {
   useGetMe, getGetMeQueryKey, useUpdateMe, useLogoutCustomer,
   useGetSupportContact, getGetSupportContactQueryKey,
@@ -19,11 +20,7 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const { t, lang, setLang } = useT();
   const [editing, setEditing] = useState(false);
-  const [editingPhone, setEditingPhone] = useState(false);
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [phoneError, setPhoneError] = useState("");
-  const [savingPhone, setSavingPhone] = useState(false);
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
   const [showSupport, setShowSupport] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -63,29 +60,6 @@ export default function Profile() {
         },
       }
     );
-  };
-
-  const handleSavePhone = async () => {
-    if (!phone.trim()) { setEditingPhone(false); return; }
-    setPhoneError("");
-    setSavingPhone(true);
-    try {
-      const res = await fetch("/api/customers/me/phone", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-customer-id": String(session?.id) },
-        body: JSON.stringify({ phone: phone.trim() }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        setPhoneError(d.error || "Xatolik");
-      } else {
-        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-        setEditingPhone(false);
-      }
-    } catch {
-      setPhoneError("Xatolik yuz berdi");
-    }
-    setSavingPhone(false);
   };
 
   const handleThemeToggle = () => {
@@ -159,47 +133,13 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Telefon tahrirlash */}
-        {editingPhone ? (
-          <div className="flex flex-col items-center gap-1 mb-2">
-            <div className="flex items-center gap-2">
-              <Input
-                value={phone}
-                onChange={(e) => { setPhone(e.target.value); setPhoneError(""); }}
-                className="h-9 rounded-xl text-base w-44"
-                placeholder="+998901234567"
-                autoFocus
-                data-testid="input-phone"
-              />
-              <button
-                onClick={handleSavePhone}
-                disabled={savingPhone}
-                className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white disabled:opacity-60"
-                data-testid="button-save-phone"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-              <button onClick={() => { setEditingPhone(false); setPhoneError(""); }} className="w-8 h-8 bg-muted rounded-full flex items-center justify-center" data-testid="button-cancel-phone">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <p className="text-muted-foreground flex items-center gap-1.5">
-              <Phone className="w-4 h-4" />
-              {displayPhone}
-            </p>
-            <button
-              onClick={() => { setPhone(displayPhone); setEditingPhone(true); }}
-              className="w-7 h-7 bg-muted rounded-full flex items-center justify-center"
-              data-testid="button-edit-phone"
-            >
-              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
-          </div>
-        )}
+        {/* Telefon raqami — o'zgartirib bo'lmaydi */}
+        <div className="flex items-center gap-2">
+          <p className="text-muted-foreground flex items-center gap-1.5">
+            <Phone className="w-4 h-4" />
+            {displayPhone}
+          </p>
+        </div>
       </motion.div>
 
       {/* Settings List */}
