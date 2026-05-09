@@ -108,6 +108,8 @@ export default function CourierApp() {
   const wakeLockRef = useRef<any>(null);
   // Throttle: only send to server if 5s passed or moved >20m
   const lastSentRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+  // Persist GPS state across refreshes
+  const GPS_KEY = "courierGpsActive";
 
   const fetchOrders = async (courierId: number) => {
     setOrdersLoading(true);
@@ -189,7 +191,7 @@ export default function CourierApp() {
     }
   };
 
-  const startSharing = () => {
+  const startSharing = (auto = false) => {
     if (!session) return;
     setLocationError("");
     if (!navigator.geolocation) {
@@ -211,6 +213,9 @@ export default function CourierApp() {
         if (err.code === err.PERMISSION_DENIED) {
           setLocationError("GPS ruxsati berilmadi. Qurilma sozlamalarini tekshiring.");
           stopSharing();
+        } else if (!auto) {
+          // timeout / unavailable — only stop if user didn't manually start
+          // just keep trying silently for auto-resume
         }
       },
       {
@@ -221,6 +226,7 @@ export default function CourierApp() {
     );
 
     watchIdRef.current = watchId;
+    localStorage.setItem(GPS_KEY, "1");
     setSharing(true);
   };
 
@@ -231,6 +237,7 @@ export default function CourierApp() {
     }
     releaseWakeLock();
     lastSentRef.current = null;
+    localStorage.removeItem(GPS_KEY);
     setSharing(false);
   };
 
