@@ -14,13 +14,17 @@ function clearChefSession() {
 const STATUS_LABELS: Record<string, string> = {
   new: "Yangi",
   preparing: "Tayyorlanmoqda",
+  ready: "Tayyor (kuryerda)",
+  delivering: "Yetkazilmoqda",
   delivered: "Yetkazildi",
   cancelled: "Bekor qilindi",
 };
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   preparing: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  delivered: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  ready: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  delivering: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  delivered: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
 };
 
@@ -340,24 +344,26 @@ function OrderCard({ order, expanded, onToggle, onStatus, updating }: any) {
               {order.status === "preparing" && (
                 <Button
                   size="sm"
-                  onClick={() => onStatus(order.id, "delivered")}
+                  onClick={() => onStatus(order.id, "ready")}
                   disabled={updating}
                   className="flex-1 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs h-9"
                 >
                   <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                  Tayyor
+                  Tayyor — kuryerga yuborish
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onStatus(order.id, "cancelled")}
-                disabled={updating}
-                className="rounded-xl text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs h-9"
-              >
-                <XCircle className="w-3.5 h-3.5 mr-1" />
-                Bekor
-              </Button>
+              {(order.status === "new" || order.status === "preparing") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onStatus(order.id, "cancelled")}
+                  disabled={updating}
+                  className="rounded-xl text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs h-9"
+                >
+                  <XCircle className="w-3.5 h-3.5 mr-1" />
+                  Bekor
+                </Button>
+              )}
             </div>
           </motion.div>
         )}

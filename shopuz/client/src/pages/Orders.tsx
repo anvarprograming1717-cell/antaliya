@@ -10,31 +10,34 @@ import { getCustomerSession } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
-// Courier person icon (like Yandex Taxi but with a person)
+// Courier scooter icon
 const courierIcon = L.divIcon({
   html: `<div style="
-    width:44px;height:44px;border-radius:50%;
+    width:50px;height:50px;border-radius:50%;
     background:#4F46E5;border:3px solid white;
-    box-shadow:0 3px 12px rgba(79,70,229,0.55);
+    box-shadow:0 3px 14px rgba(79,70,229,0.6);
     display:flex;align-items:center;justify-content:center;
     position:relative;
   ">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="5" r="2.5" fill="white"/>
-      <path d="M8 10.5C8 10.5 9.5 9 12 9C14.5 9 16 10.5 16 10.5L15 15H13L12.5 18H11.5L11 15H9L8 10.5Z" fill="white"/>
-      <path d="M9 15L7 19" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-      <path d="M15 15L17 19" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    <svg width="30" height="30" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="36" r="6" stroke="white" stroke-width="2.5" fill="none"/>
+      <circle cx="36" cy="36" r="6" stroke="white" stroke-width="2.5" fill="none"/>
+      <path d="M18 36H30" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M30 36L28 24H36L38 30" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M28 24L22 18H14L12 24L18 26L22 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M22 18L24 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="25" cy="12" r="2.5" fill="white"/>
     </svg>
     <div style="
-      position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
-      width:0;height:0;border-left:6px solid transparent;
-      border-right:6px solid transparent;border-top:7px solid #4F46E5;
+      position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
+      width:0;height:0;border-left:7px solid transparent;
+      border-right:7px solid transparent;border-top:8px solid #4F46E5;
     "></div>
   </div>`,
   className: "",
-  iconSize: [44, 52],
-  iconAnchor: [22, 52],
-  popupAnchor: [0, -52],
+  iconSize: [50, 60],
+  iconAnchor: [25, 60],
+  popupAnchor: [0, -60],
 });
 
 const deliveryIcon = L.divIcon({
@@ -212,7 +215,9 @@ function DeleteOrderModal({ orderId, onConfirm, onCancel, isPending }: { orderId
 
 const STATUS_LABELS: Record<string, string> = {
   new: "Yangi",
-  preparing: "Yo'lda",
+  preparing: "Tayyorlanmoqda",
+  ready: "Tayyor",
+  delivering: "Yo'lda",
   delivered: "Yetkazildi",
   cancelled: "Bekor qilindi",
 };
@@ -220,7 +225,9 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
   preparing: "bg-orange-100 text-orange-700",
-  delivered: "bg-green-100 text-green-700",
+  ready: "bg-green-100 text-green-700",
+  delivering: "bg-purple-100 text-purple-700",
+  delivered: "bg-gray-100 text-gray-600",
   cancelled: "bg-red-100 text-red-700",
 };
 
@@ -307,23 +314,25 @@ export default function Orders() {
                 </div>
 
                 {/* Courier tracking card */}
-                {order.courierId && order.status === "preparing" && (
+                {order.courierId && order.status === "delivering" && (
                   <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-3 mb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center shrink-0">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="5" r="2.5" fill="white"/>
-                            <path d="M8 10.5C8 10.5 9.5 9 12 9C14.5 9 16 10.5 16 10.5L15 15H13L12.5 18H11.5L11 15H9L8 10.5Z" fill="white"/>
-                            <path d="M9 15L7 19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                            <path d="M15 15L17 19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                          <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
+                            <circle cx="12" cy="36" r="5" stroke="white" strokeWidth="2.5" fill="none"/>
+                            <circle cx="36" cy="36" r="5" stroke="white" strokeWidth="2.5" fill="none"/>
+                            <path d="M17 36H31" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                            <path d="M31 36L29 24H37L39 30" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M29 24L23 18H15L13 24L19 26L23 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <circle cx="26" cy="12" r="2.5" fill="white"/>
                           </svg>
                         </div>
                         <div>
                           <p className="font-semibold text-sm">{order.courierName}</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            <p className="text-xs text-green-600 dark:text-green-400">Yo'lda</p>
+                            <p className="text-xs text-green-600 dark:text-green-400">Yo'lda kelmoqda</p>
                           </div>
                         </div>
                       </div>

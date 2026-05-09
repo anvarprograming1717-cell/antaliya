@@ -104,8 +104,17 @@ router.get("/courier/orders", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Courier not authenticated" });
     return;
   }
+  // Show: "ready" orders (unassigned, for picking up) + own "delivering" orders
+  const { or, isNull } = await import("drizzle-orm");
   const orders = await db.select().from(ordersTable)
-    .where(eq(ordersTable.courierId, courierId))
+    .where(
+      or(
+        // Ready orders with no courier assigned yet
+        eq(ordersTable.status, "ready" as any),
+        // Their own active delivering orders
+        eq(ordersTable.courierId, courierId),
+      )
+    )
     .orderBy(ordersTable.createdAt);
   const enriched = orders.map((o: any) => ({
     ...o,
@@ -115,6 +124,28 @@ router.get("/courier/orders", async (req, res): Promise<void> => {
     items: [],
   }));
   res.json(enriched);
+});
+
+// Courier accepts a ready order → becomes "delivering"
+router.patch("/courier/orders/:id/accept", async (req, res): Promise<void> => {
+  const courierId = (req as any).courierId;
+  if (!courierId) { res.status(401).json({ error: "Courier not authenticated" }); return; }
+  const id = parseInt(req.params.id, 10);
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+  if (order.status !== "ready") { res.status(400).json({ error: "Order is not ready" }); return; }
+  await db.update(ordersTable).set({ status: "delivering" as any, courierId }).where(eq(ordersTable.id, id));
+  const [updated] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+  res.json({ ...updated, totalPrice: parseFloat(updated.totalPrice as string), deliveryFee: parseFloat(updated.deliveryFee as string) });
+});
+
+// Courier marks order as delivered
+router.patch("/courier/orders/:id/delivered", async (req, res): Promise<void> => {
+  const courierId = (req as any).courierId;
+  if (!courierId) { res.status(401).json({ error: "Courier not authenticated" }); return; }
+  const id = parseInt(req.params.id, 10);
+  await db.update(ordersTable).set({ status: "delivered" as any }).where(eq(ordersTable.id, id));
+  res.json({ success: true });
 });
 
 export default router;

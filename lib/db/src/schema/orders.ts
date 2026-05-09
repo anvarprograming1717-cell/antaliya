@@ -8,7 +8,7 @@ export const ordersTable = pgTable("orders", {
   id: serial("id").primaryKey(),
   customerId: integer("customer_id").notNull().references(() => customersTable.id, { onDelete: "cascade" }),
   courierId: integer("courier_id").references(() => couriersTable.id),
-  status: text("status", { enum: ["new", "preparing", "delivered", "cancelled"] }).notNull().default("new"),
+  status: text("status", { enum: ["new", "preparing", "ready", "delivering", "delivered", "cancelled"] }).notNull().default("new"),
   deliveryMethod: text("delivery_method", { enum: ["delivery", "pickup"] }).notNull(),
   paymentMethod: text("payment_method", { enum: ["cash", "card", "online"] }).notNull(),
   address: text("address"),

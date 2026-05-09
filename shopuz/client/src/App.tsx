@@ -29,7 +29,6 @@ import Products from "@/pages/admin/Products";
 import Categories from "@/pages/admin/Categories";
 import Banners from "@/pages/admin/Banners";
 import Delivery from "@/pages/admin/Delivery";
-import AdminOrders from "@/pages/admin/AdminOrders";
 import Customers from "@/pages/admin/Customers";
 import AdminChat from "@/pages/admin/AdminChat";
 import Notifications from "@/pages/admin/Notifications";
@@ -99,7 +98,6 @@ function AppRouter() {
       <Route path="/admin/categories" component={() => <AdminRoute component={Categories} />} />
       <Route path="/admin/banners" component={() => <AdminRoute component={Banners} />} />
       <Route path="/admin/delivery" component={() => <AdminRoute component={Delivery} />} />
-      <Route path="/admin/orders" component={() => <AdminRoute component={AdminOrders} />} />
       <Route path="/admin/customers" component={() => <AdminRoute component={Customers} />} />
       <Route path="/admin/chat" component={() => <AdminRoute component={AdminChat} />} />
       <Route path="/admin/notifications" component={() => <AdminRoute component={Notifications} />} />

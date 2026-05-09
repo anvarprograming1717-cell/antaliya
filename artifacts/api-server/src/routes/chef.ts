@@ -19,7 +19,8 @@ router.get("/chef/orders", async (req, res): Promise<void> => {
   const token = req.headers["x-chef-token"];
   if (token !== "chef-authenticated") { res.status(401).json({ error: "Unauthorized" }); return; }
   const orders = await db.select().from(ordersTable)
-    .where(inArray(ordersTable.status, ["new", "preparing"] as any));
+    .where(inArray(ordersTable.status, ["new", "preparing", "ready"] as any))
+    .orderBy(ordersTable.createdAt);
   res.json(orders);
 });
 
@@ -28,7 +29,7 @@ router.patch("/chef/orders/:id/status", async (req, res): Promise<void> => {
   if (token !== "chef-authenticated") { res.status(401).json({ error: "Unauthorized" }); return; }
   const id = parseInt(req.params.id);
   const { status } = req.body;
-  if (!["preparing", "delivered", "cancelled"].includes(status)) {
+  if (!["preparing", "ready", "cancelled"].includes(status)) {
     res.status(400).json({ error: "Invalid status" }); return;
   }
   await db.update(ordersTable).set({ status } as any).where(eq(ordersTable.id, id));

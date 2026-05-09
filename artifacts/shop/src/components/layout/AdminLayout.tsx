@@ -81,7 +81,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/categories", icon: FolderTree, label: "Categories" },
     { href: "/admin/banners", icon: ImageIcon, label: "Banners" },
     { href: "/admin/delivery", icon: Truck, label: "Delivery" },
-    { href: "/admin/orders", icon: ShoppingCart, label: "Orders" },
     { href: "/admin/customers", icon: Users, label: "Customers" },
     { href: "/admin/chat", icon: MessageSquare, label: "Chat" },
     { href: "/admin/notifications", icon: Bell, label: "Notifications" },
