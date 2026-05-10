@@ -37,10 +37,15 @@ export default function Home() {
   const logoUrl = siteSettings?.logoUrl || null;
 
   const [coinBalance, setCoinBalance] = useState(0);
+  const [coinEnabled, setCoinEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/coins/settings").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinEnabled(d.coinEnabled ?? true); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!session?.id) return;
-    fetch("/api/coins/balance").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinBalance(d.coins ?? 0); }).catch(() => {});
+    fetch("/api/coins/balance").then(r => r.ok ? r.json() : null).then(d => { if (d) { setCoinBalance(d.coins ?? 0); setCoinEnabled(d.coinEnabled ?? true); } }).catch(() => {});
   }, [session?.id]);
 
   const { data: banners, isLoading: loadingBanners } = useListBanners({ query: { queryKey: getListBannersQueryKey() } });
@@ -169,7 +174,7 @@ export default function Home() {
           </div>
         )}
         <div className="flex items-center gap-2">
-          {session?.id && (
+          {session?.id && coinEnabled && (
             <Link href="/profile">
               <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 rounded-full px-2.5 py-1.5">
                 <Coins className="w-4 h-4 text-amber-500" />
@@ -247,8 +252,8 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Coin Products Section — only show when user is logged in */}
-        {session?.id && !search && !selectedCategory && (() => {
+        {/* Coin Products Section — only show when user is logged in and coin system is enabled */}
+        {session?.id && coinEnabled && !search && !selectedCategory && (() => {
           const coinProducts = productsData?.products.filter((p: any) => p.coinProduct && (p.coinThreshold ?? 0) > 0) ?? [];
           if (coinProducts.length === 0) return null;
           const unlocked = coinProducts.filter((p: any) => coinBalance >= (p.coinThreshold ?? 0));
@@ -285,7 +290,7 @@ export default function Home() {
                           <img src={p.images?.[0] || "https://placehold.co/200"} alt={p.name} className="w-full h-full object-contain" />
                         </div>
                         <p className="text-xs font-semibold line-clamp-2 leading-tight mb-1">{p.name}</p>
-                        <p className="text-xs font-bold text-primary">{p.price.toLocaleString()} so'm</p>
+                        <p className="text-xs font-bold text-amber-600">bonus</p>
                       </div>
                     </Link>
                   );

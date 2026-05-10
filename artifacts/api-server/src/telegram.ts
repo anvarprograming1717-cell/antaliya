@@ -38,14 +38,21 @@ async function sendMsg(token: string, chatId: string, text: string, extra?: obje
   } catch (_) {}
 }
 
-const MAIN_KEYBOARD = {
-  keyboard: [
-    [{ text: "🛒 Savatcha" }, { text: "📦 Buyurtmalarim" }],
-    [{ text: "🪙 Coinlarim" }],
-  ],
-  resize_keyboard: true,
-  persistent: true,
-};
+function makeMainKeyboard(coinEnabled: boolean, siteUrl?: string) {
+  const rows: any[][] = [];
+  if (siteUrl) {
+    rows.push([{ text: "🛍 Do'konni ochish", web_app: { url: siteUrl } }]);
+  }
+  rows.push([{ text: "🛒 Savatcha" }, { text: "📦 Buyurtmalarim" }]);
+  if (coinEnabled) {
+    rows.push([{ text: "🪙 Coinlarim" }]);
+  }
+  return {
+    keyboard: rows,
+    resize_keyboard: true,
+    persistent: true,
+  };
+}
 
 export async function sendTelegramToAdmins(text: string): Promise<void> {
   const token = await getBotToken();
@@ -80,9 +87,23 @@ export async function sendTelegramToCustomer(telegramId: string, text: string): 
   await sendMsg(token, telegramId, text);
 }
 
+// Deduplication: track recently processed update_ids to prevent double replies
+const processedUpdateIds = new Set<number>();
+const MAX_PROCESSED_IDS = 500;
+
 export async function handleTelegramWebhook(update: any): Promise<void> {
   const token = await getBotToken();
   if (!token) return;
+
+  // Deduplicate: ignore already-processed updates (Telegram can retry on timeout)
+  if (update.update_id) {
+    if (processedUpdateIds.has(update.update_id)) return;
+    processedUpdateIds.add(update.update_id);
+    if (processedUpdateIds.size > MAX_PROCESSED_IDS) {
+      const first = processedUpdateIds.values().next().value!;
+      processedUpdateIds.delete(first);
+    }
+  }
 
   const message = update.message;
   if (!message) return;
@@ -94,19 +115,14 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
   const map = await getMap();
   const siteName = map.siteName || "Do'konimiz";
   const siteUrl = map.botSiteUrl || "";
-  const deliveryUrl = map.botDeliveryUrl || siteUrl;
+  const coinEnabled = map.coinEnabled !== "false";
 
-  // /start command
+  const MAIN_KEYBOARD = makeMainKeyboard(coinEnabled, siteUrl);
+
+  // /start command — send ONE combined message
   if (text === "/start") {
-    const welcomeText = `Assalomu aleykum, <b>${firstName}</b>! 👋\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nBuyurtma berish uchun quyidagi tugmani bosing 👇`;
+    const welcomeText = `Assalomu aleykum, <b>${firstName}</b>! 👋\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nBuyurtma berish uchun quyidagi menyudan foydalaning 👇`;
     await sendMsg(token, chatId, welcomeText, { reply_markup: MAIN_KEYBOARD });
-    if (siteUrl) {
-      await sendMsg(token, chatId, "🛍 Do'konni ochish:", {
-        reply_markup: {
-          inline_keyboard: [[{ text: "🛍 Do'konni ochish", web_app: { url: siteUrl } }]],
-        },
-      });
-    }
     return;
   }
 
@@ -117,10 +133,7 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
       const notLinkedText = siteUrl
         ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n\n<i>Ro'yhatdan o'tgan telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
         : `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yhatdan o'tgan telefon raqamingizni shu yerga yuboring: <code>+998XXXXXXXXX</code>`;
-      const markup = siteUrl
-        ? { inline_keyboard: [[{ text: "🛍 Saytga o'tish", web_app: { url: siteUrl } }]] }
-        : MAIN_KEYBOARD;
-      await sendMsg(token, chatId, notLinkedText, { reply_markup: markup });
+      await sendMsg(token, chatId, notLinkedText, { reply_markup: MAIN_KEYBOARD });
       return;
     }
     const customer = customers[0];
@@ -143,9 +156,13 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
 
     const subtotal = cartItems.reduce((sum, item) =>
       sum + parseFloat(item.product.price as string) * item.quantity, 0);
-    const itemLines = cartItems.map(item =>
-      `  • ${item.product.name} × ${item.quantity} — <b>${(parseFloat(item.product.price as string) * item.quantity).toLocaleString()} so'm</b>`
-    ).join("\n");
+    const itemLines = cartItems.map(item => {
+      const isCoinProduct = item.product.coinProduct;
+      const priceStr = isCoinProduct
+        ? `<b>bonus</b>`
+        : `<b>${(parseFloat(item.product.price as string) * item.quantity).toLocaleString()} so'm</b>`;
+      return `  • ${item.product.name} × ${item.quantity} — ${priceStr}`;
+    }).join("\n");
 
     const cartText = `🛒 <b>Savatchingiz:</b>\n\n${itemLines}\n\n💰 <b>Jami: ${subtotal.toLocaleString()} so'm</b>`;
 
@@ -168,10 +185,7 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
       const notLinkedText = siteUrl
         ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n\n<i>Ro'yhatdan o'tgan telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
         : `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yhatdan o'tgan telefon raqamingizni shu yerga yuboring: <code>+998XXXXXXXXX</code>`;
-      const markup = siteUrl
-        ? { inline_keyboard: [[{ text: "🛍 Saytga o'tish", web_app: { url: siteUrl } }]] }
-        : MAIN_KEYBOARD;
-      await sendMsg(token, chatId, notLinkedText, { reply_markup: markup });
+      await sendMsg(token, chatId, notLinkedText, { reply_markup: MAIN_KEYBOARD });
       return;
     }
     const customer = customers[0];
@@ -215,14 +229,18 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
     return;
   }
 
-  // Coinlarim button
+  // Coinlarim button — only active when coinEnabled
   if (text === "🪙 Coinlarim") {
+    if (!coinEnabled) {
+      await sendMsg(token, chatId, "Coin tizimi hozirda mavjud emas.", { reply_markup: MAIN_KEYBOARD });
+      return;
+    }
     const customers = await db.select().from(customersTable).where(eq(customersTable.telegramId, chatId)).limit(1);
     if (customers.length === 0) {
-      const notLinkedText = siteUrl
-        ? `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yxatdan o'tgan telefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`
-        : `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yxatdan o'tgan telefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`;
-      await sendMsg(token, chatId, notLinkedText, { reply_markup: MAIN_KEYBOARD });
+      await sendMsg(token, chatId,
+        `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yxatdan o'tgan telefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`,
+        { reply_markup: MAIN_KEYBOARD }
+      );
       return;
     }
     const customer = customers[0];
@@ -237,9 +255,7 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
   // Phone number registration
   const phone = text.replace(/[^\d+]/g, "");
   if (phone.length >= 7) {
-    // Normalize: strip leading zeros/country code variants and match last 9 digits
     const digits = phone.replace(/^\+/, "");
-    // Try exact match first, then suffix match (last 9 digits)
     const suffix = digits.slice(-9);
     const rows = await db.select().from(customersTable);
     const matched = rows.find(c => {
@@ -265,15 +281,7 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
   }
 
   // Default reply
-  if (siteUrl) {
-    await sendMsg(token, chatId, "Menyu va buyurtma berish uchun quyidagi tugmani bosing 👇", {
-      reply_markup: {
-        inline_keyboard: [[{ text: "🛍 Buyurtma berish", web_app: { url: siteUrl } }]],
-      },
-    });
-  } else {
-    await sendMsg(token, chatId, "Buyurtmalaringizni ko'rish uchun /start ni yuboring.", {
-      reply_markup: MAIN_KEYBOARD,
-    });
-  }
+  await sendMsg(token, chatId, "Menyu va buyurtma berish uchun quyidagi tugmalardan foydalaning 👇", {
+    reply_markup: MAIN_KEYBOARD,
+  });
 }

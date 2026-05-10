@@ -57,10 +57,11 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
 });
 
 router.post("/telegram-webhook", async (req, res): Promise<void> => {
+  // Respond immediately so Telegram doesn't retry (which causes double replies)
+  res.json({ success: true });
   try {
     await handleTelegramWebhook(req.body);
   } catch (_) {}
-  res.json({ success: true });
 });
 
 export default router;

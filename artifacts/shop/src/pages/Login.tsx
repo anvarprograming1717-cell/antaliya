@@ -91,6 +91,7 @@ export default function Login() {
       {
         onSuccess: async (data) => {
           if (data.exists && data.customer) {
+            toast({ title: "Bu raqam ro'yxatdan o'tgan", description: "Tizimga kirilmoqda..." });
             setCustomerSession(data.customer);
             if (telegramIdRef.current) {
               await linkTelegramId(data.customer.id, telegramIdRef.current);
