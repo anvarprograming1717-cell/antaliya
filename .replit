@@ -87,7 +87,6 @@ externalPort = 5173
 [userenv]
 
 [userenv.shared]
-TELEGRAM_BOT_TOKEN = "8359379882:AAF3LbwKc-XKMZF7ibW3U42xD2tVp45y5yo"
 
 [nix]
 channel = "stable-25_05"
