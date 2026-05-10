@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { ShoppingCart, Trash2, ArrowRight, Package } from "lucide-react";
+import { ShoppingCart, Trash2, ArrowRight } from "lucide-react";
 import { useGetCart, getGetCartQueryKey, useUpdateCartItem, useRemoveFromCart, useGetDeliverySettings, getGetDeliverySettingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -29,9 +29,7 @@ export default function Cart() {
     });
   };
 
-  const hasOnlyBonusProducts = !!(cartItems?.length && cartItems.every(item => (item.product as any).coinProduct));
   const subtotal = cartItems?.reduce((sum, item) => {
-    if ((item.product as any).coinProduct) return sum;
     return sum + (item.product.price as number) * item.quantity;
   }, 0) || 0;
   const DELIVERY_FEE = subtotal >= FREE_THRESHOLD ? 0 : DELIVERY_FEE_AMOUNT;
@@ -92,13 +90,10 @@ export default function Cart() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-sm line-clamp-2 mb-1">{item.product.name}</h3>
-                  {(item.product as any).coinProduct ? (
-                    <p className="text-amber-600 font-bold">bonus</p>
-                  ) : (
-                    <>
-                      <p className="text-primary font-bold">{((item.product.price as number) * item.quantity).toLocaleString()} so'm</p>
-                      <p className="text-xs text-muted-foreground">{(item.product.price as number).toLocaleString()} so'm/dona</p>
-                    </>
+                  <p className="text-primary font-bold">{((item.product.price as number) * item.quantity).toLocaleString()} so'm</p>
+                  <p className="text-xs text-muted-foreground">{(item.product.price as number).toLocaleString()} so'm/dona</p>
+                  {(item.product as any).coinProduct && (
+                    <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">🪙 Bonus</span>
                   )}
                 </div>
                 <div className="flex flex-col items-end justify-between">
@@ -136,15 +131,8 @@ export default function Cart() {
               </div>
             </div>
 
-            {hasOnlyBonusProducts && (
-              <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl px-4 py-3">
-                <Package className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-700 dark:text-amber-400">Bonus mahsulotni yolg'iz buyurtma bera olmaysiz. Kamida 1 ta oddiy mahsulot qo'shing.</p>
-              </div>
-            )}
             <Button
               onClick={() => setLocation("/checkout")}
-              disabled={hasOnlyBonusProducts}
               className="w-full h-14 rounded-2xl text-base font-semibold mt-2"
               data-testid="button-checkout"
             >
