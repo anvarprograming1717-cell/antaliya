@@ -118,17 +118,24 @@ router.get("/admin/work-schedule", async (req, res): Promise<void> => {
   if (map.workDays) { try { workDays = JSON.parse(map.workDays); } catch {} }
   const workStart = map.workStart ?? "09:00";
   const workEnd = map.workEnd ?? "22:00";
-  res.json({ workDays, workStart, workEnd });
+  const timezone = map.timezone ?? "Asia/Tashkent";
+  const nowLocal = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+  const currentTime = `${String(nowLocal.getHours()).padStart(2, "0")}:${String(nowLocal.getMinutes()).padStart(2, "0")}`;
+  res.json({ workDays, workStart, workEnd, timezone, currentTime });
 });
 
 router.patch("/admin/work-schedule", async (req, res): Promise<void> => {
-  const { workDays, workStart, workEnd } = req.body;
+  const { workDays, workStart, workEnd, timezone } = req.body;
   if (!Array.isArray(workDays)) { res.status(400).json({ error: "workDays must be array" }); return; }
   await upsertSetting("workDays", JSON.stringify(workDays));
   if (workStart) await upsertSetting("workStart", workStart);
   if (workEnd) await upsertSetting("workEnd", workEnd);
+  if (timezone) await upsertSetting("timezone", timezone);
   const map = await getAllMap();
-  res.json({ workDays, workStart: map.workStart ?? "09:00", workEnd: map.workEnd ?? "22:00" });
+  const tz = map.timezone ?? "Asia/Tashkent";
+  const nowLocal = new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
+  const currentTime = `${String(nowLocal.getHours()).padStart(2, "0")}:${String(nowLocal.getMinutes()).padStart(2, "0")}`;
+  res.json({ workDays, workStart: map.workStart ?? "09:00", workEnd: map.workEnd ?? "22:00", timezone: tz, currentTime });
 });
 
 router.get("/work-schedule", async (req, res): Promise<void> => {
@@ -137,14 +144,16 @@ router.get("/work-schedule", async (req, res): Promise<void> => {
   if (map.workDays) { try { workDays = JSON.parse(map.workDays); } catch {} }
   const workStart = map.workStart ?? "09:00";
   const workEnd = map.workEnd ?? "22:00";
+  const timezone = map.timezone ?? "Asia/Tashkent";
 
-  const now = new Date();
-  const todayDay = now.getDay();
+  // Use configured timezone for correct local time
+  const nowLocal = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+  const todayDay = nowLocal.getDay();
   const isDayOpen = workDays.includes(todayDay);
 
   const [startH, startM] = workStart.split(":").map(Number);
   const [endH, endM] = workEnd.split(":").map(Number);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentMinutes = nowLocal.getHours() * 60 + nowLocal.getMinutes();
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
   const isTimeOpen = currentMinutes >= startMinutes && currentMinutes < endMinutes;

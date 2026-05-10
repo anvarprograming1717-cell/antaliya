@@ -92,6 +92,8 @@ export default function Settings() {
   const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
   const [workStart, setWorkStart] = useState("09:00");
   const [workEnd, setWorkEnd] = useState("22:00");
+  const [timezone, setTimezone] = useState("Asia/Tashkent");
+  const [currentServerTime, setCurrentServerTime] = useState("");
   const [workDaysSaved, setWorkDaysSaved] = useState(false);
   const [workDaysLoading, setWorkDaysLoading] = useState(false);
   const [chefPassword, setChefPassword] = useState("");
@@ -115,6 +117,8 @@ export default function Settings() {
       setWorkDays(d.workDays || [1, 2, 3, 4, 5, 6]);
       setWorkStart(d.workStart || "09:00");
       setWorkEnd(d.workEnd || "22:00");
+      setTimezone(d.timezone || "Asia/Tashkent");
+      setCurrentServerTime(d.currentTime || "");
     }).catch(() => {});
     fetch("/api/admin/bot-settings").then(r => r.json()).then(d => {
       setBotToken(d.botToken || "");
@@ -163,7 +167,9 @@ export default function Settings() {
   const handleSaveWorkDays = async () => {
     setWorkDaysLoading(true);
     try {
-      await fetch("/api/admin/work-schedule", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workDays, workStart, workEnd }) });
+      const r = await fetch("/api/admin/work-schedule", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workDays, workStart, workEnd, timezone }) });
+      const d = await r.json();
+      if (d.currentTime) setCurrentServerTime(d.currentTime);
       setWorkDaysSaved(true); setTimeout(() => setWorkDaysSaved(false), 2000);
     } catch {}
     setWorkDaysLoading(false);
@@ -435,8 +441,30 @@ export default function Settings() {
               />
             </div>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Vaqt zonasi</label>
+            <select
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+              className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="Asia/Tashkent">Asia/Tashkent (UTC+5) — O'zbekiston</option>
+              <option value="Asia/Almaty">Asia/Almaty (UTC+5/6) — Qozog'iston</option>
+              <option value="Asia/Bishkek">Asia/Bishkek (UTC+6) — Qirg'iziston</option>
+              <option value="Asia/Dushanbe">Asia/Dushanbe (UTC+5) — Tojikiston</option>
+              <option value="Asia/Ashgabat">Asia/Ashgabat (UTC+5) — Turkmaniston</option>
+              <option value="Europe/Moscow">Europe/Moscow (UTC+3) — Moskva</option>
+              <option value="UTC">UTC (UTC+0)</option>
+            </select>
+          </div>
+          {currentServerTime && (
+            <p className="text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
+              Serverda hozir: <span className="font-semibold text-foreground">{currentServerTime}</span>
+              {" "}({timezone})
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            Hozirgi sozlama: <span className="font-semibold text-foreground">{workStart} — {workEnd}</span>
+            Ish vaqti: <span className="font-semibold text-foreground">{workStart} — {workEnd}</span>
           </p>
         </div>
         <Button onClick={handleSaveWorkDays} disabled={workDaysLoading} className={`w-full rounded-xl ${workDaysSaved ? "bg-green-600 hover:bg-green-600" : ""}`} data-testid="button-save-work-days">
