@@ -102,6 +102,30 @@ export default function CourierApp() {
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [accepting, setAccepting] = useState<number | null>(null);
   const [delivering, setDelivering] = useState<number | null>(null);
+  const [newOrderAlert, setNewOrderAlert] = useState(false);
+  const prevOrderIdsRef = useRef<Set<number>>(new Set());
+
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playTone = (freq: number, start: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + dur);
+      };
+      playTone(880, 0, 0.15);
+      playTone(1100, 0.18, 0.15);
+      playTone(1320, 0.36, 0.25);
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+    } catch {}
+  };
 
   // GPS refs — use watchPosition for continuous tracking
   const watchIdRef = useRef<number | null>(null);
@@ -118,7 +142,17 @@ export default function CourierApp() {
         headers: { "x-courier-id": String(courierId) },
       });
       const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const arr: any[] = Array.isArray(data) ? data : [];
+      const readyForMe = arr.filter(o => o.status === "ready" && !o.courierId);
+      const newIds = new Set(readyForMe.map((o: any) => o.id));
+      const hasNew = readyForMe.some((o: any) => !prevOrderIdsRef.current.has(o.id));
+      if (prevOrderIdsRef.current.size > 0 && hasNew) {
+        playBeep();
+        setNewOrderAlert(true);
+        setTimeout(() => setNewOrderAlert(false), 5000);
+      }
+      prevOrderIdsRef.current = newIds;
+      setOrders(arr);
     } catch (e) {
       console.error(e);
     } finally {
@@ -129,7 +163,7 @@ export default function CourierApp() {
   useEffect(() => {
     if (session) {
       fetchOrders(session.id);
-      const interval = setInterval(() => fetchOrders(session.id), 12000);
+      const interval = setInterval(() => fetchOrders(session.id), 5000);
 
       // Auto-resume GPS if it was active before refresh
       if (localStorage.getItem(GPS_KEY) === "1") {
@@ -385,14 +419,30 @@ export default function CourierApp() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-40 glass-panel border-b border-white/20 px-4 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold">Kuryer paneli</h1>
-          <p className="text-xs text-muted-foreground">{session.name} · {session.phone}</p>
+      <div className="sticky top-0 z-40">
+        <div className="glass-panel border-b border-white/20 px-4 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold">Kuryer paneli</h1>
+            <p className="text-xs text-muted-foreground">{session.name} · {session.phone}</p>
+          </div>
+          <button onClick={handleLogout} className="p-2 rounded-xl hover:bg-muted transition-colors" data-testid="button-logout">
+            <LogOut className="w-5 h-5 text-destructive" />
+          </button>
         </div>
-        <button onClick={handleLogout} className="p-2 rounded-xl hover:bg-muted transition-colors" data-testid="button-logout">
-          <LogOut className="w-5 h-5 text-destructive" />
-        </button>
+        <AnimatePresence>
+          {newOrderAlert && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-green-600 text-white text-center py-2.5 px-4 text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <span className="animate-bounce">🔔</span>
+              Yangi buyurtma tayyor — olib keting!
+              <span className="animate-bounce">🔔</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="p-4 max-w-md mx-auto space-y-4">

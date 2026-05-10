@@ -257,10 +257,46 @@ export default function ChefPanel() {
   const [updating, setUpdating] = useState<number | null>(null);
   const intervalRef = useRef<any>(null);
 
+  const [newOrderAlert, setNewOrderAlert] = useState(false);
+  const prevOrderIdsRef = useRef<Set<number>>(new Set());
+
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playTone = (freq: number, start: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + dur);
+      };
+      playTone(880, 0, 0.15);
+      playTone(1100, 0.18, 0.15);
+      playTone(1320, 0.36, 0.25);
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+    } catch {}
+  };
+
   const fetchOrders = async () => {
     try {
       const r = await fetch("/api/chef/orders", { headers: chefHeaders() });
-      if (r.ok) setOrders(await r.json());
+      if (r.ok) {
+        const data: any[] = await r.json();
+        const newIds = new Set(data.map((o: any) => o.id));
+        const hasNew = data.some((o: any) => !prevOrderIdsRef.current.has(o.id));
+        if (prevOrderIdsRef.current.size > 0 && hasNew) {
+          playBeep();
+          setNewOrderAlert(true);
+          setTimeout(() => setNewOrderAlert(false), 5000);
+        }
+        prevOrderIdsRef.current = newIds;
+        setOrders(data);
+      }
     } catch {}
   };
 
@@ -278,7 +314,7 @@ export default function ChefPanel() {
     if (!loggedIn) return;
     fetchOrders();
     fetchUnread();
-    intervalRef.current = setInterval(() => { fetchOrders(); fetchUnread(); }, 8000);
+    intervalRef.current = setInterval(() => { fetchOrders(); fetchUnread(); }, 5000);
     return () => clearInterval(intervalRef.current);
   }, [loggedIn]);
 
@@ -387,6 +423,21 @@ export default function ChefPanel() {
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {newOrderAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-blue-600 text-white text-center py-2.5 px-4 text-sm font-bold flex items-center justify-center gap-2"
+          >
+            <span className="animate-bounce">🔔</span>
+            Yangi buyurtma keldi!
+            <span className="animate-bounce">🔔</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex border-b border-border/50 bg-background">
         <button
