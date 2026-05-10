@@ -98,22 +98,7 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
   // /start command
   if (text === "/start") {
     const welcomeText = `Assalomu aleykum, <b>${firstName}</b>! 👋\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nQuyidagi tugmalardan foydalaning 👇`;
-
-    const inlineButtons: any[][] = [];
-    if (siteUrl) {
-      inlineButtons.push([{ text: "🛍 Menyu va buyurtma berish", url: siteUrl }]);
-    }
-    if (deliveryUrl && deliveryUrl !== siteUrl) {
-      inlineButtons.push([{ text: "🚚 Yetkazib berish xizmati", url: deliveryUrl }]);
-    }
-
-    if (inlineButtons.length > 0) {
-      await sendMsg(token, chatId, welcomeText, {
-        reply_markup: { inline_keyboard: inlineButtons },
-      });
-    } else {
-      await sendMsg(token, chatId, welcomeText, { reply_markup: MAIN_KEYBOARD });
-    }
+    await sendMsg(token, chatId, welcomeText, { reply_markup: MAIN_KEYBOARD });
     return;
   }
 
