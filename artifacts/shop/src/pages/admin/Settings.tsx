@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon, Send, Plus, Trash2, Calendar, ChefHat, Bot, Link, UserCog, Truck, Webhook } from "lucide-react";
+import { Phone, MessageSquare, Lock, Check, Globe, ImageIcon, Send, Plus, Trash2, Calendar, ChefHat, Bot, Link, UserCog, Truck, Webhook, Coins } from "lucide-react";
 import {
   useGetSupportContact, getGetSupportContactQueryKey, useUpdateSupportContact,
   useUpdateAdminPassword, useGetSiteSettings, getGetSiteSettingsQueryKey, useUpdateSiteSettings,
@@ -112,6 +112,13 @@ export default function Settings() {
   const [webhookResult, setWebhookResult] = useState<{ success: boolean; msg: string } | null>(null);
   const [webhookLoading, setWebhookLoading] = useState(false);
 
+  const [coinEnabled, setCoinEnabled] = useState(true);
+  const [coinRate, setCoinRate] = useState(1);
+  const [coinPer, setCoinPer] = useState(10000);
+  const [coinName, setCoinName] = useState("Coin");
+  const [coinSaved, setCoinSaved] = useState(false);
+  const [coinSaving, setCoinSaving] = useState(false);
+
   useEffect(() => {
     fetch("/api/admin/work-schedule").then(r => r.json()).then(d => {
       setWorkDays(d.workDays || [1, 2, 3, 4, 5, 6]);
@@ -122,10 +129,15 @@ export default function Settings() {
     }).catch(() => {});
     fetch("/api/admin/bot-settings").then(r => r.json()).then(d => {
       setBotToken(d.botToken || "");
-      // Auto-fill with current origin (without port) if empty
       const cleanOrigin = `${window.location.protocol}//${window.location.hostname}`;
       setBotSiteUrl(d.siteUrl || cleanOrigin);
       setBotDeliveryUrl(d.deliveryUrl || "");
+    }).catch(() => {});
+    fetch("/api/admin/coins/settings").then(r => r.json()).then(d => {
+      setCoinEnabled(d.coinEnabled !== false);
+      setCoinRate(d.coinRate || 1);
+      setCoinPer(d.coinPer || 10000);
+      setCoinName(d.coinName || "Coin");
     }).catch(() => {});
   }, []);
 
@@ -187,6 +199,20 @@ export default function Settings() {
       else setChefError("Xato yuz berdi");
     } catch { setChefError("Server bilan aloqa yo'q"); }
     setChefSaving(false);
+  };
+
+  const handleSaveCoinSettings = async () => {
+    setCoinSaving(true);
+    try {
+      await fetch("/api/admin/coins/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coinEnabled, coinRate, coinPer, coinName }),
+      });
+      setCoinSaved(true);
+      setTimeout(() => setCoinSaved(false), 2000);
+    } catch {}
+    setCoinSaving(false);
   };
 
   const handleSaveBotSettings = async () => {
@@ -390,6 +416,72 @@ export default function Settings() {
         {passwordError && <p className="text-destructive text-sm" data-testid="text-password-error">{passwordError}</p>}
         <Button onClick={handleSavePassword} disabled={!passwordForm.currentPassword || !passwordForm.newPassword || updatePassword.isPending} className={`w-full rounded-xl ${passwordSaved ? "bg-green-600 hover:bg-green-600" : ""}`} data-testid="button-save-password">
           {passwordSaved ? <><Check className="w-4 h-4 mr-2" /> O'zgartirildi!</> : "O'zgartirish"}
+        </Button>
+      </motion.div>
+
+      {/* Coin / Loyalty System */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Coins className="w-5 h-5 text-yellow-500" />
+          <h3 className="font-bold">Coin tizimi (Loyallik)</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Buyurtma yetkazilganda mijozga avtomatik coin beriladi. Coin nomi va kursi o'rnatiladi.
+        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Coin tizimini yoqish</p>
+            <p className="text-xs text-muted-foreground">{coinEnabled ? "Yoqilgan" : "O'chirilgan"}</p>
+          </div>
+          <button
+            onClick={() => setCoinEnabled(!coinEnabled)}
+            className={`w-12 h-6 rounded-full flex items-center transition-all ${coinEnabled ? "bg-yellow-500" : "bg-muted"}`}
+          >
+            <div className={`w-5 h-5 rounded-full bg-white shadow transition-all mx-0.5 ${coinEnabled ? "ml-6" : ""}`} />
+          </button>
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1">Coin nomi</label>
+          <Input
+            value={coinName}
+            onChange={e => setCoinName(e.target.value)}
+            placeholder="Coin, Ball, Bonus..."
+            className="rounded-xl"
+          />
+          <p className="text-xs text-muted-foreground mt-1">Foydalanuvchi profilida ko'rinadigan nom</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium block mb-1">Coin miqdori</label>
+            <Input
+              type="number"
+              min={1}
+              value={coinRate}
+              onChange={e => setCoinRate(parseInt(e.target.value) || 1)}
+              className="rounded-xl"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">Har qancha so'mga</label>
+            <Input
+              type="number"
+              min={1000}
+              step={1000}
+              value={coinPer}
+              onChange={e => setCoinPer(parseInt(e.target.value) || 10000)}
+              className="rounded-xl"
+            />
+          </div>
+        </div>
+        <div className="bg-yellow-50 dark:bg-yellow-500/10 rounded-xl p-3 text-sm text-yellow-800 dark:text-yellow-300">
+          📊 Misol: {coinPer.toLocaleString()} so'mlik buyurtma uchun <strong>{coinRate} {coinName}</strong> beriladi. 100,000 so'mlik buyurtma uchun <strong>{Math.floor(100000 / coinPer) * coinRate} {coinName}</strong>.
+        </div>
+        <Button
+          onClick={handleSaveCoinSettings}
+          disabled={coinSaving}
+          className={`w-full rounded-xl ${coinSaved ? "bg-green-600 hover:bg-green-600" : "bg-yellow-500 hover:bg-yellow-600 text-white"}`}
+        >
+          {coinSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}
         </Button>
       </motion.div>
 

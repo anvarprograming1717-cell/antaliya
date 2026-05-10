@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Phone, Trash2, AlertTriangle } from "lucide-react";
+import { Users, Phone, Trash2, AlertTriangle, Coins } from "lucide-react";
 import { useListCustomers, getListCustomersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +39,7 @@ export default function Customers() {
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">#</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ism</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Telefon</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Coinlar</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ro'yxat sanasi</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground"></th>
               </tr>
@@ -66,6 +67,12 @@ export default function Customers() {
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Phone className="w-3.5 h-3.5" />
                       <span>{c.phone}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400 font-medium text-sm">
+                      <Coins className="w-3.5 h-3.5" />
+                      <span>{(c as any).coins ?? 0}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">

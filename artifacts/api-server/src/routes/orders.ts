@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable, promoCodesTable, promoCodeUsagesTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartTable, productsTable, customersTable, settingsTable, couriersTable, promoCodesTable, promoCodeUsagesTable, coinTransactionsTable } from "@workspace/db";
+import { getCoinSettings } from "./coins.js";
 import { sendTelegramToAdmins, sendTelegramToChefs, sendTelegramToCouriers, sendTelegramToCourier, sendTelegramToCustomer } from "../telegram.js";
 import {
   ListOrdersQueryParams,
@@ -239,6 +240,30 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
 
   if (customerTelegramId && statusMessages[parsed.data.status]) {
     sendTelegramToCustomer(customerTelegramId, statusMessages[parsed.data.status]).catch(() => {});
+  }
+
+  // Award coins when order is delivered
+  if (parsed.data.status === "delivered" && order.customerId) {
+    try {
+      const coinSettings = await getCoinSettings();
+      if (coinSettings.coinEnabled && coinSettings.coinRate > 0 && coinSettings.coinPer > 0) {
+        const coinsEarned = Math.floor(enriched.totalPrice / coinSettings.coinPer) * coinSettings.coinRate;
+        if (coinsEarned > 0) {
+          const [currentCustomer] = await db.select({ coins: customersTable.coins }).from(customersTable).where(eq(customersTable.id, order.customerId)).limit(1);
+          const newCoins = (currentCustomer?.coins ?? 0) + coinsEarned;
+          await db.update(customersTable).set({ coins: newCoins }).where(eq(customersTable.id, order.customerId));
+          await db.insert(coinTransactionsTable).values({
+            customerId: order.customerId,
+            amount: coinsEarned,
+            reason: `Buyurtma #${order.id} uchun`,
+            orderId: order.id,
+          });
+          if (customerTelegramId) {
+            sendTelegramToCustomer(customerTelegramId, `🪙 <b>${coinsEarned} ${coinSettings.coinName} qo'shildi!</b>\n\nBuyurtma #${order.id} uchun bonus coinlar hisobingizga o'tkazildi.\nJami coinlar: ${newCoins} ${coinSettings.coinName}`).catch(() => {});
+          }
+        }
+      }
+    } catch {}
   }
 
   if (parsed.data.status === "ready") {

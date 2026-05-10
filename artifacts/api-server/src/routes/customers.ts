@@ -13,6 +13,7 @@ function serializeCustomer(c: any) {
     avatarUrl: c.avatarUrl ?? null,
     language: c.language ?? null,
     telegramId: c.telegramId ?? null,
+    coins: c.coins ?? 0,
     createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
   };
 }

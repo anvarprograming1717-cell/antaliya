@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff, Link2, Link2Off, Loader2 } from "lucide-react";
+import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff, Link2, Link2Off, Loader2, Coins } from "lucide-react";
 
 import {
   useGetMe, getGetMeQueryKey, useUpdateMe, useLogoutCustomer,
@@ -42,6 +42,12 @@ export default function Profile() {
   const logoutCustomer = useLogoutCustomer();
   const { data: notifications = [] } = useListNotifications({ query: { queryKey: ["/api/notifications"] } });
   const markRead = useMarkNotificationsRead();
+
+  const [coinBalance, setCoinBalance] = useState<{ coins: number; coinName: string; coinEnabled: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/coins/balance").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinBalance(d); }).catch(() => {});
+  }, [customer]);
 
   const lastReadAt = (customer as any)?.lastNotificationReadAt;
   const unreadCount = (notifications as any[]).filter(
@@ -166,6 +172,34 @@ export default function Profile() {
           </p>
         </div>
       </motion.div>
+
+      {/* Coin Balance Card */}
+      {coinBalance?.coinEnabled && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mx-4 mb-4"
+        >
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 p-4 text-white shadow-lg">
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full" />
+            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/10 rounded-full" />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-yellow-100 mb-0.5">Mening coinlarim</p>
+                <div className="flex items-end gap-1.5">
+                  <span className="text-3xl font-bold">{(coinBalance.coins ?? 0).toLocaleString()}</span>
+                  <span className="text-base font-semibold text-yellow-100 mb-0.5">{coinBalance.coinName}</span>
+                </div>
+                <p className="text-xs text-yellow-100 mt-1">Har bir yetkazilgan buyurtmadan coin yig'ing</p>
+              </div>
+              <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center flex-none">
+                <Coins className="w-8 h-8 text-white" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Settings List */}
       <div className="px-4 space-y-3">

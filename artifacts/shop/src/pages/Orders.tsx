@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, Package, MapPin, X, Trash2, Phone, Navigation2 } from "lucide-react";
+import { Clock, Package, MapPin, X, Trash2, Phone, Navigation2, Coins } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -294,6 +294,11 @@ export default function Orders() {
   const queryClient = useQueryClient();
   const [mapOrder, setMapOrder] = useState<any | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [coinSettings, setCoinSettings] = useState<{ coinEnabled: boolean; coinRate: number; coinPer: number; coinName: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/coins/settings").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinSettings(d); }).catch(() => {});
+  }, []);
 
   const { data: orders, isLoading } = useListOrders(
     { customerId: session?.id },
@@ -405,6 +410,16 @@ export default function Orders() {
                     </div>
                   </div>
                 )}
+
+                {order.status === "delivered" && coinSettings?.coinEnabled && coinSettings.coinRate > 0 && coinSettings.coinPer > 0 && (() => {
+                  const earned = Math.floor((order.totalPrice as number) / coinSettings.coinPer) * coinSettings.coinRate;
+                  return earned > 0 ? (
+                    <div className="flex items-center gap-1.5 bg-yellow-50 dark:bg-yellow-500/10 rounded-xl px-3 py-2 mb-2 text-xs text-yellow-700 dark:text-yellow-300 font-medium">
+                      <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                      <span>+{earned} {coinSettings.coinName} qo'shildi</span>
+                    </div>
+                  ) : null;
+                })()}
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
