@@ -29,6 +29,7 @@ export default function Cart() {
     });
   };
 
+  const hasOnlyBonusProducts = !!(cartItems?.length && cartItems.every(item => (item.product as any).coinProduct));
   const subtotal = cartItems?.reduce((sum, item) => {
     if ((item.product as any).coinProduct) return sum;
     return sum + (item.product.price as number) * item.quantity;
@@ -135,8 +136,15 @@ export default function Cart() {
               </div>
             </div>
 
+            {hasOnlyBonusProducts && (
+              <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl px-4 py-3">
+                <Package className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">Bonus mahsulotni yolg'iz buyurtma bera olmaysiz. Kamida 1 ta oddiy mahsulot qo'shing.</p>
+              </div>
+            )}
             <Button
               onClick={() => setLocation("/checkout")}
+              disabled={hasOnlyBonusProducts}
               className="w-full h-14 rounded-2xl text-base font-semibold mt-2"
               data-testid="button-checkout"
             >

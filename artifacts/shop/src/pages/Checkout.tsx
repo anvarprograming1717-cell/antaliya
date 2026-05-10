@@ -88,7 +88,11 @@ export default function Checkout() {
     }
   }, [addressLat, addressLng, zone, deliveryMethod]);
 
-  const subtotal = cartItems?.reduce((sum, item) => sum + (item.product.price as number) * item.quantity, 0) || 0;
+  const hasOnlyBonusProducts = !!(cartItems?.length && cartItems.every(item => (item.product as any).coinProduct));
+  const subtotal = cartItems?.reduce((sum, item) => {
+    if ((item.product as any).coinProduct) return sum;
+    return sum + (item.product.price as number) * item.quantity;
+  }, 0) || 0;
   const deliveryFee = deliveryMethod === "delivery" && subtotal < FREE_THRESHOLD ? DELIVERY_FEE_AMOUNT : 0;
   const discount = promoApplied?.discountAmount || 0;
   const total = Math.max(0, subtotal + deliveryFee - discount);
@@ -160,7 +164,7 @@ export default function Checkout() {
 
   const isOutsideZone = !!zoneError;
   const isShopClosed = schedule !== null && !schedule.isOpen;
-  const canOrder = !isShopClosed && (deliveryMethod === "delivery"
+  const canOrder = !isShopClosed && !hasOnlyBonusProducts && (deliveryMethod === "delivery"
     ? !!(address.trim() && !isOutsideZone)
     : true);
 
@@ -400,8 +404,14 @@ export default function Checkout() {
 
           {/* Order Summary */}
           <div className="bg-card rounded-2xl p-4 border border-border/50 space-y-2">
+            {cartItems?.map(item => (item.product as any).coinProduct ? (
+              <div key={item.id} className="flex justify-between text-sm">
+                <span className="text-muted-foreground line-clamp-1 flex-1 mr-2">{item.product.name} ×{item.quantity}</span>
+                <span className="text-amber-600 font-bold shrink-0">bonus</span>
+              </div>
+            ) : null)}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Mahsulotlar ({cartItems?.length || 0})</span>
+              <span className="text-muted-foreground">Mahsulotlar ({cartItems?.filter(i => !(i.product as any).coinProduct).length || 0})</span>
               <span>{subtotal.toLocaleString()} so'm</span>
             </div>
             <div className="flex justify-between text-sm">
@@ -419,6 +429,20 @@ export default function Checkout() {
               <span className="text-primary">{total.toLocaleString()} so'm</span>
             </div>
           </div>
+
+          {hasOnlyBonusProducts && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl px-4 py-4"
+            >
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-700 dark:text-amber-400">Faqat bonus mahsulot</p>
+                <p className="text-sm text-amber-600 dark:text-amber-400 mt-0.5">Bonus mahsulotni yolg'iz buyurtma bera olmaysiz. Kamida 1 ta oddiy mahsulot qo'shing.</p>
+              </div>
+            </motion.div>
+          )}
 
           {isShopClosed && (
             <motion.div
@@ -450,11 +474,13 @@ export default function Checkout() {
           <Button
             onClick={handleOrder}
             disabled={createOrder.isPending || !canOrder}
-            className={`w-full h-14 rounded-2xl text-base font-semibold ${isShopClosed ? "opacity-60" : ""}`}
+            className={`w-full h-14 rounded-2xl text-base font-semibold ${isShopClosed || hasOnlyBonusProducts ? "opacity-60" : ""}`}
             data-testid="button-place-order"
           >
             {createOrder.isPending
               ? "Buyurtma berilmoqda..."
+              : hasOnlyBonusProducts
+              ? "Oddiy mahsulot qo'shing"
               : isShopClosed
               ? "Do'kon yopiq — buyurtma bo'lmaydi"
               : isOutsideZone
