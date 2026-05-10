@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useLoginCustomer, useSearchCustomer } from "@workspace/api-client-react";
 import { setCustomerSession } from "@/lib/auth";
@@ -9,15 +9,51 @@ import { Label } from "@/components/ui/label";
 import { ShoppingBag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+function getTelegramUserId(): string | null {
+  try {
+    const tg = (window as any).Telegram?.WebApp;
+    const id = tg?.initDataUnsafe?.user?.id;
+    return id ? String(id) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function linkTelegramId(customerId: number, telegramId: string) {
+  try {
+    await fetch("/api/customers/link-telegram", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-customer-id": String(customerId),
+      },
+      body: JSON.stringify({ telegramId }),
+    });
+  } catch {}
+}
+
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const searchCustomer = useSearchCustomer();
   const loginCustomer = useLoginCustomer();
+  const telegramIdRef = useRef<string | null>(null);
 
   const [step, setStep] = useState<"phone" | "name">("phone");
   const [phone, setPhone] = useState("+998");
   const [name, setName] = useState("");
+
+  useEffect(() => {
+    telegramIdRef.current = getTelegramUserId();
+    // Expand Telegram WebApp to full screen if inside bot
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg) {
+        tg.expand();
+        tg.ready();
+      }
+    } catch {}
+  }, []);
 
   const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,9 +65,12 @@ export default function Login() {
     searchCustomer.mutate(
       { data: { phone } },
       {
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
           if (data.exists && data.customer) {
             setCustomerSession(data.customer);
+            if (telegramIdRef.current && !data.customer.telegramId) {
+              await linkTelegramId(data.customer.id, telegramIdRef.current);
+            }
             setLocation("/");
           } else {
             setStep("name");
@@ -54,8 +93,11 @@ export default function Login() {
     loginCustomer.mutate(
       { data: { phone, name } },
       {
-        onSuccess: (customer) => {
+        onSuccess: async (customer) => {
           setCustomerSession(customer);
+          if (telegramIdRef.current) {
+            await linkTelegramId(customer.id, telegramIdRef.current);
+          }
           setLocation("/");
         },
         onError: () => {

@@ -91,6 +91,24 @@ router.patch("/customers/me", async (req, res): Promise<void> => {
   res.json(serializeCustomer(customer));
 });
 
+router.post("/customers/link-telegram", async (req, res): Promise<void> => {
+  const customerId = (req as any).customerId;
+  if (!customerId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const { telegramId } = req.body;
+  if (!telegramId) {
+    res.status(400).json({ error: "telegramId required" });
+    return;
+  }
+  const [customer] = await db.update(customersTable)
+    .set({ telegramId: String(telegramId) })
+    .where(eq(customersTable.id, customerId))
+    .returning();
+  res.json(serializeCustomer(customer));
+});
+
 router.post("/customers/logout", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
