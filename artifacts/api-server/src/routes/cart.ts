@@ -25,6 +25,8 @@ async function getProductForCart(productId: number, customerId: number | null) {
     inStock: productsTable.inStock,
     unit: productsTable.unit,
     createdAt: productsTable.createdAt,
+    coinProduct: productsTable.coinProduct,
+    coinThreshold: productsTable.coinThreshold,
   })
     .from(productsTable)
     .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.id))
