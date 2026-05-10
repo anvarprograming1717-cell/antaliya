@@ -13,17 +13,17 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Remove Replit dev banner and badge
       function removeReplitElements() {
         var banner = document.getElementById('replit-dev-banner');
         if (banner) { banner.remove(); document.body.style.paddingTop = '0'; }
         var badge = document.getElementById('replit-badge');
         if (badge) badge.remove();
+        document.querySelectorAll('[data-replit-badge],[class*="replit-badge"],[id*="replit"]').forEach(function(el) { el.remove(); });
       }
       removeReplitElements();
       document.addEventListener('DOMContentLoaded', removeReplitElements);
-      setTimeout(removeReplitElements, 500);
-      setTimeout(removeReplitElements, 1500);
+      var observer = new MutationObserver(removeReplitElements);
+      observer.observe(document.documentElement, { childList: true, subtree: true });
     </script>
   </body>
 </html>
