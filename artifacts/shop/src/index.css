@@ -288,3 +288,38 @@
     inset: -1px;
   }
 }
+
+/* Hide all Replit branding, badges, and dev banner */
+#replit-badge,
+#replit-dev-banner,
+[data-testid="replit-badge"],
+.replit-badge,
+iframe[src*="replit.com/badge"],
+iframe[src*="replit-badge"],
+iframe[src*="replit-dev-banner"],
+div[class*="replit-badge"],
+div[id*="replit-dev-banner"],
+script[id="replit-dev-banner"],
+a[href*="replit.com/~"]:not([class]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  position: absolute !important;
+  overflow: hidden !important;
+}
+
+/* Hide Replit dev banner iframe that is injected at the top */
+body > iframe:first-of-type[style*="position: fixed"],
+body > div[style*="position: fixed"][style*="top: 0"][style*="z-index: 9999"],
+body > div[style*="position: fixed"][style*="top: 0"][style*="z-index: 2147483647"] {
+  display: none !important;
+}
+
+/* Remove top padding/margin that banner may have added */
+body {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}

@@ -147,7 +147,7 @@ export default function Home() {
       {/* Header */}
       <div className="sticky top-0 z-40 glass-panel border-b border-white/20 dark:border-white/10 px-4 py-3 flex items-center justify-between">
         {logoUrl ? (
-          <img src={logoUrl} alt={siteName} className="h-8 w-auto max-w-[120px] object-contain" />
+          <img src={logoUrl} alt={siteName} className="h-12 w-auto max-w-[160px] object-contain" />
         ) : (
           <div className="flex items-center gap-1.5">
             <div className="w-7 h-7 rounded-xl bg-primary flex items-center justify-center">
