@@ -142,7 +142,7 @@ export default function Login() {
           <img
             src={logoUrl}
             alt="Logo"
-            className="mx-auto w-16 h-16 rounded-2xl object-contain mb-6"
+            className="mx-auto w-28 h-28 rounded-2xl object-contain mb-6"
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         ) : (

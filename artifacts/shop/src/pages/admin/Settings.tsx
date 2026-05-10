@@ -320,12 +320,6 @@ export default function Settings() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">Bo'sh qoldirsangiz sayt domeni avtomatik ishlatiladi</p>
         </div>
-        <div>
-          <label className="text-sm font-medium block mb-1">🚚 "Yetkazib berish" tugmasi URL</label>
-          <div className="relative"><Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={botDeliveryUrl} onChange={e => setBotDeliveryUrl(e.target.value)} placeholder="https://sizning-sayt.replit.app" className="pl-9 rounded-xl" />
-          </div>
-        </div>
         {webhookResult && (
           <div className={`p-3 rounded-xl text-sm break-all ${webhookResult.success ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-destructive/10 text-destructive"}`}>
             {webhookResult.msg}
@@ -333,29 +327,6 @@ export default function Settings() {
         )}
         <Button onClick={handleSaveBotSettings} disabled={botSaving || !botToken.trim()} className={`w-full rounded-xl ${botSaved ? "bg-green-600 hover:bg-green-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
           {botSaving ? "Ulanmoqda..." : botSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi va ulandi!</> : "Saqlash va webhookni ulash"}
-        </Button>
-      </motion.div>
-
-      {/* Webhook Setup (manual / override) */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Webhook className="w-5 h-5 text-purple-500" />
-          <h3 className="font-bold">Webhook qo'lda ulash</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Agar boshqa domen (masalan, deploy URL) bilan ulash kerak bo'lsa foydalaning. Odatda yuqoridagi tugma yetarli.
-        </p>
-        <div>
-          <label className="text-sm font-medium block mb-1">Webhook URL</label>
-          <Input
-            value={webhookUrl}
-            onChange={e => setWebhookUrl(e.target.value)}
-            placeholder={`${typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}` : "https://your-app.replit.app"}/api/telegram-webhook`}
-            className="rounded-xl text-xs font-mono"
-          />
-        </div>
-        <Button onClick={handleSetupWebhook} disabled={webhookLoading || !webhookUrl.trim()} className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 text-white">
-          {webhookLoading ? "Ulanmoqda..." : "Webhookni ulash"}
         </Button>
       </motion.div>
 
