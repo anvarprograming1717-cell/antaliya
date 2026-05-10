@@ -171,6 +171,25 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   await db.delete(cartTable).where(eq(cartTable.customerId, customerId));
 
+  // Deduct coins for coin products in the order
+  const coinProductItems = cartItems.filter(item => item.product.coinProduct);
+  if (coinProductItems.length > 0) {
+    const totalCoinCost = coinProductItems.reduce((sum, item) => {
+      return sum + ((item.product.coinThreshold ?? 0) * item.quantity);
+    }, 0);
+    if (totalCoinCost > 0) {
+      const [currentCustomer] = await db.select({ coins: customersTable.coins }).from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+      const newCoins = Math.max(0, (currentCustomer?.coins ?? 0) - totalCoinCost);
+      await db.update(customersTable).set({ coins: newCoins }).where(eq(customersTable.id, customerId));
+      await db.insert(coinTransactionsTable).values({
+        customerId,
+        amount: -totalCoinCost,
+        reason: `Buyurtma #${order.id} — coin mahsulot`,
+        orderId: order.id,
+      });
+    }
+  }
+
   const enriched = await enrichOrder(order);
 
   const customer = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
@@ -242,24 +261,33 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
     sendTelegramToCustomer(customerTelegramId, statusMessages[parsed.data.status]).catch(() => {});
   }
 
-  // Award coins when order is delivered
+  // Award coins when order is delivered — but NOT if any item is a coin product
   if (parsed.data.status === "delivered" && order.customerId) {
     try {
-      const coinSettings = await getCoinSettings();
-      if (coinSettings.coinEnabled && coinSettings.coinRate > 0 && coinSettings.coinPer > 0) {
-        const coinsEarned = Math.floor(enriched.totalPrice / coinSettings.coinPer) * coinSettings.coinRate;
-        if (coinsEarned > 0) {
-          const [currentCustomer] = await db.select({ coins: customersTable.coins }).from(customersTable).where(eq(customersTable.id, order.customerId)).limit(1);
-          const newCoins = (currentCustomer?.coins ?? 0) + coinsEarned;
-          await db.update(customersTable).set({ coins: newCoins }).where(eq(customersTable.id, order.customerId));
-          await db.insert(coinTransactionsTable).values({
-            customerId: order.customerId,
-            amount: coinsEarned,
-            reason: `Buyurtma #${order.id} uchun`,
-            orderId: order.id,
-          });
-          if (customerTelegramId) {
-            sendTelegramToCustomer(customerTelegramId, `🪙 <b>${coinsEarned} ${coinSettings.coinName} qo'shildi!</b>\n\nBuyurtma #${order.id} uchun bonus coinlar hisobingizga o'tkazildi.\nJami coinlar: ${newCoins} ${coinSettings.coinName}`).catch(() => {});
+      const deliveredItems = await db
+        .select({ coinProduct: productsTable.coinProduct })
+        .from(orderItemsTable)
+        .innerJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
+        .where(eq(orderItemsTable.orderId, order.id));
+      const hasCoinProducts = deliveredItems.some(i => i.coinProduct);
+
+      if (!hasCoinProducts) {
+        const coinSettings = await getCoinSettings();
+        if (coinSettings.coinEnabled && coinSettings.coinRate > 0 && coinSettings.coinPer > 0) {
+          const coinsEarned = Math.floor(enriched.totalPrice / coinSettings.coinPer) * coinSettings.coinRate;
+          if (coinsEarned > 0) {
+            const [currentCustomer] = await db.select({ coins: customersTable.coins }).from(customersTable).where(eq(customersTable.id, order.customerId)).limit(1);
+            const newCoins = (currentCustomer?.coins ?? 0) + coinsEarned;
+            await db.update(customersTable).set({ coins: newCoins }).where(eq(customersTable.id, order.customerId));
+            await db.insert(coinTransactionsTable).values({
+              customerId: order.customerId,
+              amount: coinsEarned,
+              reason: `Buyurtma #${order.id} uchun`,
+              orderId: order.id,
+            });
+            if (customerTelegramId) {
+              sendTelegramToCustomer(customerTelegramId, `🪙 <b>${coinsEarned} ${coinSettings.coinName} qo'shildi!</b>\n\nBuyurtma #${order.id} uchun bonus coinlar hisobingizga o'tkazildi.\nJami coinlar: ${newCoins} ${coinSettings.coinName}`).catch(() => {});
+            }
           }
         }
       }
