@@ -104,34 +104,55 @@ router.get("/admin/work-schedule", async (req, res): Promise<void> => {
   const map = await getAllMap();
   let workDays = [1, 2, 3, 4, 5, 6];
   if (map.workDays) { try { workDays = JSON.parse(map.workDays); } catch {} }
-  res.json({ workDays });
+  const workStart = map.workStart ?? "09:00";
+  const workEnd = map.workEnd ?? "22:00";
+  res.json({ workDays, workStart, workEnd });
 });
 
 router.patch("/admin/work-schedule", async (req, res): Promise<void> => {
-  const { workDays } = req.body;
+  const { workDays, workStart, workEnd } = req.body;
   if (!Array.isArray(workDays)) { res.status(400).json({ error: "workDays must be array" }); return; }
   await upsertSetting("workDays", JSON.stringify(workDays));
-  res.json({ workDays });
+  if (workStart) await upsertSetting("workStart", workStart);
+  if (workEnd) await upsertSetting("workEnd", workEnd);
+  const map = await getAllMap();
+  res.json({ workDays, workStart: map.workStart ?? "09:00", workEnd: map.workEnd ?? "22:00" });
 });
 
 router.get("/work-schedule", async (req, res): Promise<void> => {
   const map = await getAllMap();
   let workDays = [1, 2, 3, 4, 5, 6];
   if (map.workDays) { try { workDays = JSON.parse(map.workDays); } catch {} }
+  const workStart = map.workStart ?? "09:00";
+  const workEnd = map.workEnd ?? "22:00";
 
-  const todayDay = new Date().getDay();
-  const isOpen = workDays.includes(todayDay);
+  const now = new Date();
+  const todayDay = now.getDay();
+  const isDayOpen = workDays.includes(todayDay);
+
+  const [startH, startM] = workStart.split(":").map(Number);
+  const [endH, endM] = workEnd.split(":").map(Number);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+  const isTimeOpen = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+
+  const isOpen = isDayOpen && isTimeOpen;
 
   const dayNames = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
   let nextWorkDay = "";
   if (!isOpen) {
-    for (let i = 1; i <= 7; i++) {
-      const nd = (todayDay + i) % 7;
-      if (workDays.includes(nd)) { nextWorkDay = dayNames[nd]; break; }
+    if (isDayOpen && !isTimeOpen && currentMinutes < startMinutes) {
+      nextWorkDay = `Bugun ${workStart} da ochiladi`;
+    } else {
+      for (let i = 1; i <= 7; i++) {
+        const nd = (todayDay + i) % 7;
+        if (workDays.includes(nd)) { nextWorkDay = `${dayNames[nd]} ${workStart} da`; break; }
+      }
     }
   }
 
-  res.json({ isOpen, nextWorkDay, workDays });
+  res.json({ isOpen, nextWorkDay, workDays, workStart, workEnd });
 });
 
 // ── Telegram roles ────────────────────────────────────────────────────────────

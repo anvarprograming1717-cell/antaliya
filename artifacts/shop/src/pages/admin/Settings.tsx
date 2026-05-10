@@ -90,6 +90,8 @@ export default function Settings() {
   const [siteSaved, setSiteSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [workStart, setWorkStart] = useState("09:00");
+  const [workEnd, setWorkEnd] = useState("22:00");
   const [workDaysSaved, setWorkDaysSaved] = useState(false);
   const [workDaysLoading, setWorkDaysLoading] = useState(false);
   const [chefPassword, setChefPassword] = useState("");
@@ -109,7 +111,11 @@ export default function Settings() {
   const [webhookLoading, setWebhookLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/work-schedule").then(r => r.json()).then(d => setWorkDays(d.workDays || [1, 2, 3, 4, 5, 6])).catch(() => {});
+    fetch("/api/admin/work-schedule").then(r => r.json()).then(d => {
+      setWorkDays(d.workDays || [1, 2, 3, 4, 5, 6]);
+      setWorkStart(d.workStart || "09:00");
+      setWorkEnd(d.workEnd || "22:00");
+    }).catch(() => {});
     fetch("/api/admin/bot-settings").then(r => r.json()).then(d => {
       setBotToken(d.botToken || "");
       // Auto-fill with current origin if empty
@@ -156,7 +162,7 @@ export default function Settings() {
   const handleSaveWorkDays = async () => {
     setWorkDaysLoading(true);
     try {
-      await fetch("/api/admin/work-schedule", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workDays }) });
+      await fetch("/api/admin/work-schedule", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workDays, workStart, workEnd }) });
       setWorkDaysSaved(true); setTimeout(() => setWorkDaysSaved(false), 2000);
     } catch {}
     setWorkDaysLoading(false);
@@ -397,13 +403,13 @@ export default function Settings() {
         </Button>
       </motion.div>
 
-      {/* Work Days */}
+      {/* Work Days + Hours */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
-          <h3 className="font-bold">Ish kunlari</h3>
+          <h3 className="font-bold">Ish kunlari va vaqti</h3>
         </div>
-        <p className="text-xs text-muted-foreground">Ish kunlarini belgilang. Dam olish kunlarida foydalanuvchilar keyingi ish kuni haqida xabar ko'radi.</p>
+        <p className="text-xs text-muted-foreground">Ish kunlari va ish soatlarini belgilang. Dam olish kunlarida yoki ish vaqtidan tashqarida foydalanuvchilar xabar ko'radi.</p>
         <div className="grid grid-cols-2 gap-2">
           {[
             { day: 1, label: "Dushanba" }, { day: 2, label: "Seshanba" }, { day: 3, label: "Chorshanba" },
@@ -422,6 +428,32 @@ export default function Settings() {
               </button>
             );
           })}
+        </div>
+        <div className="pt-2 border-t border-border/40 space-y-3">
+          <p className="text-sm font-medium">Ish soatlari</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Ochilish vaqti</label>
+              <Input
+                type="time"
+                value={workStart}
+                onChange={e => setWorkStart(e.target.value)}
+                className="rounded-xl text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Yopilish vaqti</label>
+              <Input
+                type="time"
+                value={workEnd}
+                onChange={e => setWorkEnd(e.target.value)}
+                className="rounded-xl text-sm"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Hozirgi sozlama: <span className="font-semibold text-foreground">{workStart} — {workEnd}</span>
+          </p>
         </div>
         <Button onClick={handleSaveWorkDays} disabled={workDaysLoading} className={`w-full rounded-xl ${workDaysSaved ? "bg-green-600 hover:bg-green-600" : ""}`} data-testid="button-save-work-days">
           {workDaysSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}

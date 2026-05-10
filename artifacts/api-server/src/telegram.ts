@@ -218,14 +218,31 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
 
   // Phone number registration
   const phone = text.replace(/[^\d+]/g, "");
-  if (phone.length >= 9) {
-    await db.update(customersTable)
-      .set({ telegramId: chatId })
-      .where(eq(customersTable.phone, phone));
-    await sendMsg(token, chatId,
-      `✅ Telefon raqamingiz muvaffaqiyatli bog'landi!\n\nEndi buyurtmalar va xabarnomalar Telegramda keladi.`,
-      { reply_markup: MAIN_KEYBOARD }
-    );
+  if (phone.length >= 7) {
+    // Normalize: strip leading zeros/country code variants and match last 9 digits
+    const digits = phone.replace(/^\+/, "");
+    // Try exact match first, then suffix match (last 9 digits)
+    const suffix = digits.slice(-9);
+    const rows = await db.select().from(customersTable);
+    const matched = rows.find(c => {
+      if (!c.phone) return false;
+      const cd = c.phone.replace(/[^\d]/g, "");
+      return cd === digits || cd.endsWith(suffix);
+    });
+    if (matched) {
+      await db.update(customersTable)
+        .set({ telegramId: chatId })
+        .where(eq(customersTable.id, matched.id));
+      await sendMsg(token, chatId,
+        `✅ Telefon raqamingiz muvaffaqiyatli bog'landi!\n\nEndi buyurtmalar va xabarnomalar Telegramda keladi.`,
+        { reply_markup: MAIN_KEYBOARD }
+      );
+    } else {
+      await sendMsg(token, chatId,
+        `❌ Bu raqam bilan saytda hisob topilmadi.\n\nAvval saytga ro'yxatdan o'ting, so'ng telefon raqamingizni yuboring.`,
+        { reply_markup: MAIN_KEYBOARD }
+      );
+    }
     return;
   }
 
