@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff, CheckCircle } from "lucide-react";
+import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff } from "lucide-react";
 
 import {
   useGetMe, getGetMeQueryKey, useUpdateMe, useLogoutCustomer,
@@ -255,23 +255,6 @@ export default function Profile() {
             </>
           )}
         </div>
-
-        {/* Telegram status */}
-        {customer?.telegramId && (
-          <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
-            <div className="px-4 py-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center flex-none">
-                <Send className="w-4 h-4 text-blue-500" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Telegram</p>
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> Bog'langan
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Support */}
         <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">

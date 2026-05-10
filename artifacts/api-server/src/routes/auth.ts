@@ -102,8 +102,14 @@ router.post("/customers/link-telegram", async (req, res): Promise<void> => {
     res.status(400).json({ error: "telegramId required" });
     return;
   }
+  const tid = String(telegramId);
+  // Remove this telegramId from any other customer who currently has it
+  await db.update(customersTable)
+    .set({ telegramId: null })
+    .where(eq(customersTable.telegramId, tid));
+  // Link to current customer
   const [customer] = await db.update(customersTable)
-    .set({ telegramId: String(telegramId) })
+    .set({ telegramId: tid })
     .where(eq(customersTable.id, customerId))
     .returning();
   res.json(serializeCustomer(customer));

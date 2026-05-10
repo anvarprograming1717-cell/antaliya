@@ -68,7 +68,7 @@ export default function Login() {
         onSuccess: async (data) => {
           if (data.exists && data.customer) {
             setCustomerSession(data.customer);
-            if (telegramIdRef.current && !data.customer.telegramId) {
+            if (telegramIdRef.current) {
               await linkTelegramId(data.customer.id, telegramIdRef.current);
             }
             setLocation("/");
