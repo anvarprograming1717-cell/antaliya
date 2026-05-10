@@ -13,8 +13,6 @@ import {
   getGetSiteSettingsQueryKey,
   useAddToCart,
   getGetCartQueryKey,
-  useGetMe,
-  getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -38,8 +36,12 @@ export default function Home() {
   const siteName = siteSettings?.siteName || "ShopUz";
   const logoUrl = siteSettings?.logoUrl || null;
 
-  const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey(), enabled: !!session?.id } });
-  const coinBalance = (me as any)?.coins ?? 0;
+  const [coinBalance, setCoinBalance] = useState(0);
+
+  useEffect(() => {
+    if (!session?.id) return;
+    fetch("/api/coins/balance").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinBalance(d.coins ?? 0); }).catch(() => {});
+  }, [session?.id]);
 
   const { data: banners, isLoading: loadingBanners } = useListBanners({ query: { queryKey: getListBannersQueryKey() } });
   const { data: categories, isLoading: loadingCategories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });

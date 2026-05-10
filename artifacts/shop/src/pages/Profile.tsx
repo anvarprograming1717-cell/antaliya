@@ -43,13 +43,11 @@ export default function Profile() {
   const { data: notifications = [] } = useListNotifications({ query: { queryKey: ["/api/notifications"] } });
   const markRead = useMarkNotificationsRead();
 
-  const [coinMeta, setCoinMeta] = useState<{ coinName: string; coinEnabled: boolean } | null>(null);
+  const [coinBalance, setCoinBalance] = useState<{ coins: number; coinName: string; coinEnabled: boolean }>({ coins: 0, coinName: "Coin", coinEnabled: true });
 
   useEffect(() => {
-    fetch("/api/coins/balance").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinMeta({ coinName: d.coinName, coinEnabled: d.coinEnabled }); }).catch(() => {});
-  }, []);
-
-  const coinBalance = { coins: (customer as any)?.coins ?? 0, coinName: coinMeta?.coinName ?? "Coin", coinEnabled: coinMeta?.coinEnabled ?? true };
+    fetch("/api/coins/balance").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinBalance({ coins: d.coins ?? 0, coinName: d.coinName ?? "Coin", coinEnabled: d.coinEnabled ?? true }); }).catch(() => {});
+  }, [customer]);
 
   const lastReadAt = (customer as any)?.lastNotificationReadAt;
   const unreadCount = (notifications as any[]).filter(
