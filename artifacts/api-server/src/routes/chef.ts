@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray } from "drizzle-orm";
-import { db, settingsTable, ordersTable, messagesTable } from "@workspace/db";
+import { db, settingsTable, ordersTable, messagesTable, customersTable } from "@workspace/db";
+import { sendTelegramToCouriers, sendTelegramToCustomer } from "../telegram.js";
 
 const router: IRouter = Router();
 
@@ -34,6 +35,29 @@ router.patch("/chef/orders/:id/status", async (req, res): Promise<void> => {
   }
   await db.update(ordersTable).set({ status } as any).where(eq(ordersTable.id, id));
   const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+
+  // Get customer for Telegram notifications
+  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, order.customerId)).limit(1);
+  const customerTelegramId = customer?.telegramId ?? null;
+
+  // Customer status notifications
+  const customerMessages: Record<string, string> = {
+    preparing: `🍳 <b>Buyurtma #${id} tayyorlanmoqda</b>\n\nSizning buyurtmangiz qabul qilindi va tayyorlanmoqda. Iltimos kuting!`,
+    ready: `✅ <b>Buyurtma #${id} tayyor!</b>\n\nSizning buyurtmangiz tayyor. Tez orada yetkazib beriladi!`,
+    cancelled: `❌ <b>Buyurtma #${id} bekor qilindi</b>\n\nAfsuski, buyurtmangiz bekor qilindi. Aloqa uchun murojaat qiling.`,
+  };
+  if (customerTelegramId && customerMessages[status]) {
+    sendTelegramToCustomer(customerTelegramId, customerMessages[status]).catch(() => {});
+  }
+
+  // When ready → notify all couriers
+  if (status === "ready") {
+    const address = order.address ? `📍 ${order.address}` : "Olib ketish";
+    const total = parseFloat(order.totalPrice as string).toLocaleString();
+    const courierText = `📦 <b>Buyurtma #${id} tayyor!</b>\n👤 ${customer?.name ?? "Noma'lum"} (${customer?.phone ?? ""})\n${address}\n💰 ${total} so'm\n\nBuyurtmani olib ketish vaqti!`;
+    sendTelegramToCouriers(courierText).catch(() => {});
+  }
+
   res.json(order);
 });
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, couriersTable, ordersTable } from "@workspace/db";
+import { db, couriersTable, ordersTable, customersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -138,6 +138,16 @@ router.patch("/courier/orders/:id/accept", async (req, res): Promise<void> => {
   if (order.status !== "ready") { res.status(400).json({ error: "Order is not ready" }); return; }
   await db.update(ordersTable).set({ status: "delivering" as any, courierId }).where(eq(ordersTable.id, id));
   const [updated] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+
+  // Notify customer via Telegram
+  const { sendTelegramToCustomer } = await import("../telegram.js");
+  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, updated.customerId)).limit(1);
+  if (customer?.telegramId) {
+    sendTelegramToCustomer(customer.telegramId,
+      `🚚 <b>Buyurtma #${id} yetkazilmoqda</b>\n\nKuryer yo'lda! Tez orada yetib keladi.`
+    ).catch(() => {});
+  }
+
   res.json({ ...updated, totalPrice: parseFloat(updated.totalPrice as string), deliveryFee: parseFloat(updated.deliveryFee as string) });
 });
 
@@ -146,7 +156,20 @@ router.patch("/courier/orders/:id/delivered", async (req, res): Promise<void> =>
   const courierId = (req as any).courierId;
   if (!courierId) { res.status(401).json({ error: "Courier not authenticated" }); return; }
   const id = parseInt(req.params.id, 10);
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
   await db.update(ordersTable).set({ status: "delivered" as any }).where(eq(ordersTable.id, id));
+
+  // Notify customer via Telegram
+  if (order) {
+    const { sendTelegramToCustomer } = await import("../telegram.js");
+    const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, order.customerId)).limit(1);
+    if (customer?.telegramId) {
+      sendTelegramToCustomer(customer.telegramId,
+        `🎉 <b>Buyurtma #${id} yetkazildi!</b>\n\nBuyurtmangizni qabul qildingizmi? Xarid uchun rahmat!`
+      ).catch(() => {});
+    }
+  }
+
   res.json({ success: true });
 });
 
