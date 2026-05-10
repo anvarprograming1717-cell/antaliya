@@ -114,8 +114,8 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
     const customers = await db.select().from(customersTable).where(eq(customersTable.telegramId, chatId)).limit(1);
     if (customers.length === 0) {
       const notLinkedText = siteUrl
-        ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n3️⃣ Profilingizda <b>"Telegram botga ulanish"</b> tugmasini bosing\n\n<i>Yoki shunchaki telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
-        : `❌ Siz hali saytga bog'lanmadingiz.\n\nTelefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`;
+        ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n\n<i>Ro'yhatdan o'tgan telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
+        : `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yhatdan o'tgan telefon raqamingizni shu yerga yuboring: <code>+998XXXXXXXXX</code>`;
       const markup = siteUrl
         ? { inline_keyboard: [[{ text: "🛍 Saytga o'tish", web_app: { url: siteUrl } }]] }
         : MAIN_KEYBOARD;
@@ -165,8 +165,8 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
     const customers = await db.select().from(customersTable).where(eq(customersTable.telegramId, chatId)).limit(1);
     if (customers.length === 0) {
       const notLinkedText = siteUrl
-        ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n3️⃣ Profilingizda <b>"Telegram botga ulanish"</b> tugmasini bosing\n\n<i>Yoki shunchaki telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
-        : `❌ Siz hali saytga bog'lanmadingiz.\n\nTelefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`;
+        ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n\n<i>Ro'yhatdan o'tgan telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
+        : `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yhatdan o'tgan telefon raqamingizni shu yerga yuboring: <code>+998XXXXXXXXX</code>`;
       const markup = siteUrl
         ? { inline_keyboard: [[{ text: "🛍 Saytga o'tish", web_app: { url: siteUrl } }]] }
         : MAIN_KEYBOARD;
