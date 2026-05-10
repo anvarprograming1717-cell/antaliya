@@ -15,6 +15,17 @@ import {
 
 const router: IRouter = Router();
 
+function serializeProduct(p: any, isLiked = false) {
+  return {
+    ...p,
+    price: parseFloat(p.price as string),
+    oldPrice: p.oldPrice ? parseFloat(p.oldPrice as string) : null,
+    coinProduct: p.coinProduct ?? false,
+    coinThreshold: p.coinThreshold ?? 0,
+    isLiked,
+  };
+}
+
 router.get("/products", async (req, res): Promise<void> => {
   const query = ListProductsQueryParams.parse(req.query);
   const customerId = (req as any).customerId;
@@ -43,6 +54,8 @@ router.get("/products", async (req, res): Promise<void> => {
       categoryName: categoriesTable.name,
       inStock: productsTable.inStock,
       unit: productsTable.unit,
+      coinProduct: productsTable.coinProduct,
+      coinThreshold: productsTable.coinThreshold,
       createdAt: productsTable.createdAt,
     })
       .from(productsTable)
@@ -62,12 +75,7 @@ router.get("/products", async (req, res): Promise<void> => {
     likedProductIds = new Set(liked.map(l => l.productId));
   }
 
-  const enriched = products.map(p => ({
-    ...p,
-    price: parseFloat(p.price as string),
-    oldPrice: p.oldPrice ? parseFloat(p.oldPrice as string) : null,
-    isLiked: likedProductIds.has(p.id),
-  }));
+  const enriched = products.map(p => serializeProduct(p, likedProductIds.has(p.id)));
 
   res.json({
     products: enriched,
@@ -87,16 +95,15 @@ router.post("/products", async (req, res): Promise<void> => {
     ...parsed.data,
     price: String(parsed.data.price),
     oldPrice: parsed.data.oldPrice != null ? String(parsed.data.oldPrice) : null,
+    coinProduct: (parsed.data as any).coinProduct ?? false,
+    coinThreshold: (parsed.data as any).coinThreshold ?? 0,
   }).returning();
   const category = product.categoryId
     ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, product.categoryId)).limit(1)
     : [];
   res.status(201).json({
-    ...product,
-    price: parseFloat(product.price as string),
-    oldPrice: product.oldPrice ? parseFloat(product.oldPrice as string) : null,
+    ...serializeProduct(product),
     categoryName: category[0]?.name ?? null,
-    isLiked: false,
   });
 });
 
@@ -118,6 +125,8 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     categoryName: categoriesTable.name,
     inStock: productsTable.inStock,
     unit: productsTable.unit,
+    coinProduct: productsTable.coinProduct,
+    coinThreshold: productsTable.coinThreshold,
     createdAt: productsTable.createdAt,
   })
     .from(productsTable)
@@ -137,11 +146,8 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   }
 
   res.json({
-    ...product,
-    price: parseFloat(product.price as string),
-    oldPrice: product.oldPrice ? parseFloat(product.oldPrice as string) : null,
+    ...serializeProduct(product, isLiked),
     createdAt: (product.createdAt as Date).toISOString(),
-    isLiked,
   });
 });
 
@@ -159,6 +165,8 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const updateData: any = { ...parsed.data };
   if (parsed.data.price != null) updateData.price = String(parsed.data.price);
   if (parsed.data.oldPrice != null) updateData.oldPrice = String(parsed.data.oldPrice);
+  if (req.body.coinProduct !== undefined) updateData.coinProduct = req.body.coinProduct;
+  if (req.body.coinThreshold !== undefined) updateData.coinThreshold = req.body.coinThreshold;
 
   const [product] = await db.update(productsTable)
     .set(updateData)
@@ -173,12 +181,9 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     ? await db.select().from(categoriesTable).where(eq(categoriesTable.id, product.categoryId)).limit(1)
     : [];
   res.json({
-    ...product,
-    price: parseFloat(product.price as string),
-    oldPrice: product.oldPrice ? parseFloat(product.oldPrice as string) : null,
+    ...serializeProduct(product),
     createdAt: (product.createdAt as Date).toISOString(),
     categoryName: category[0]?.name ?? null,
-    isLiked: false,
   });
 });
 

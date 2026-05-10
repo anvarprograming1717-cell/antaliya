@@ -41,6 +41,7 @@ async function sendMsg(token: string, chatId: string, text: string, extra?: obje
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "🛒 Savatcha" }, { text: "📦 Buyurtmalarim" }],
+    [{ text: "🪙 Coinlarim" }],
   ],
   resize_keyboard: true,
   persistent: true,
@@ -211,6 +212,25 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
         ? { inline_keyboard: inlineButtons }
         : MAIN_KEYBOARD,
     });
+    return;
+  }
+
+  // Coinlarim button
+  if (text === "🪙 Coinlarim") {
+    const customers = await db.select().from(customersTable).where(eq(customersTable.telegramId, chatId)).limit(1);
+    if (customers.length === 0) {
+      const notLinkedText = siteUrl
+        ? `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yxatdan o'tgan telefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`
+        : `❌ Siz hali saytga bog'lanmadingiz.\n\nRo'yxatdan o'tgan telefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`;
+      await sendMsg(token, chatId, notLinkedText, { reply_markup: MAIN_KEYBOARD });
+      return;
+    }
+    const customer = customers[0];
+    const coins = customer.coins ?? 0;
+    const coinText = coins > 0
+      ? `🪙 <b>Sizning coinlaringiz: ${coins.toLocaleString()} coin</b>\n\nHar bir yetkazilgan buyurtmadan coin yig'asiz.\nCoinlarni maxsus mahsulotlarga almashtirishingiz mumkin!`
+      : `🪙 <b>Coinlaringiz: 0 coin</b>\n\nHar bir yetkazilgan buyurtmadan coin yig'asiz.\nBuyurtma bering va coin to'lang! 🛍`;
+    await sendMsg(token, chatId, coinText, { reply_markup: MAIN_KEYBOARD });
     return;
   }
 

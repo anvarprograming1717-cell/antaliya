@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Plus, Edit2, Trash2, X, Package, Upload, Link as LinkIcon, Star } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Package, Upload, Link as LinkIcon, Star, Coins } from "lucide-react";
 import { useListProducts, getListProductsQueryKey, useCreateProduct, useUpdateProduct, useDeleteProduct, useListCategories, getListCategoriesQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ type ProductForm = {
   inStock: boolean;
   unit: UnitType;
   isFeatured: boolean;
+  coinProduct: boolean;
+  coinThreshold: string;
 };
 
 const UNITS: Array<{ value: UnitType; label: string }> = [
@@ -34,6 +36,7 @@ const UNITS: Array<{ value: UnitType; label: string }> = [
 const emptyForm: ProductForm = {
   name: "", description: "", price: "", oldPrice: "", images: "",
   categoryId: "", inStock: true, unit: "dona", isFeatured: false,
+  coinProduct: false, coinThreshold: "0",
 };
 
 export default function Products() {
@@ -77,6 +80,8 @@ export default function Products() {
       inStock: p.inStock,
       unit: (p.unit as UnitType) || "dona",
       isFeatured: p.isFeatured || false,
+      coinProduct: p.coinProduct || false,
+      coinThreshold: String(p.coinThreshold ?? 0),
     });
     setImageMode("url");
     setShowModal(true);
@@ -116,6 +121,8 @@ export default function Products() {
       inStock: form.inStock,
       unit: form.unit,
       isFeatured: form.isFeatured,
+      coinProduct: form.coinProduct,
+      coinThreshold: form.coinProduct ? (parseInt(form.coinThreshold) || 0) : 0,
     };
 
     if (editId) {
@@ -202,6 +209,7 @@ export default function Products() {
                         <div className="flex items-center gap-1.5">
                           <p className="font-medium line-clamp-1">{p.name}</p>
                           {p.isFeatured && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 flex-none" />}
+                          {p.coinProduct && <span className="flex items-center gap-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full"><Coins className="w-2.5 h-2.5" />{p.coinThreshold}</span>}
                         </div>
                         <p className="text-xs text-muted-foreground">{p.categoryName || "Kategoriyasiz"} · {p.unit}</p>
                       </div>
@@ -379,6 +387,35 @@ export default function Products() {
                     <span className="text-sm font-medium">Tavsiya</span>
                   </div>
                 </label>
+              </div>
+
+              <div className="border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 space-y-3 bg-amber-50/50 dark:bg-amber-900/10">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => setForm(f => ({ ...f, coinProduct: !f.coinProduct }))}
+                    className={`w-12 h-6 rounded-full flex items-center transition-all flex-none ${form.coinProduct ? "bg-amber-500" : "bg-muted"}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow mx-0.5 transition-all ${form.coinProduct ? "ml-6" : ""}`} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Coins className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-medium">Coin mahsulot</span>
+                  </div>
+                </label>
+                {form.coinProduct && (
+                  <div>
+                    <label className="text-xs text-amber-700 dark:text-amber-300 font-medium block mb-1">Minimal coin miqdori</label>
+                    <Input
+                      type="number"
+                      value={form.coinThreshold}
+                      onChange={e => setForm(f => ({ ...f, coinThreshold: e.target.value }))}
+                      className="rounded-xl h-9 text-sm"
+                      min="1"
+                      placeholder="Masalan: 20"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Foydalanuvchi shu coindan ko'p bo'lsa, bu mahsulot ko'rsatiladi</p>
+                  </div>
+                )}
               </div>
 
               <Button

@@ -13,6 +13,8 @@ export const productsTable = pgTable("products", {
   categoryId: integer("category_id").references(() => categoriesTable.id, { onDelete: "set null" }),
   inStock: boolean("in_stock").notNull().default(true),
   unit: text("unit").notNull().default("dona"),
+  coinProduct: boolean("coin_product").notNull().default(false),
+  coinThreshold: integer("coin_threshold").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

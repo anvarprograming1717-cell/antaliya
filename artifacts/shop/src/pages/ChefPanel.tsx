@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChefHat, LogOut, Package, Clock, CheckCircle, XCircle,
   MessageSquare, RefreshCw, ChevronDown, ChevronUp, Send, ArrowLeft,
+  Users, Search, Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,7 @@ function chefHeaders() {
   return { "Content-Type": "application/json", "x-chef-token": "chef-authenticated" };
 }
 
-// ─── Chat Tab ────────────────────────────────────────────────────────────────
+// ─── Chat Tab ─────────────────────────────────────────────────────────────────
 
 interface ChatItem {
   customerId: number;
@@ -56,7 +57,6 @@ function ChefChat() {
   const chatsRef = useRef<ChatItem[]>([]);
   const selectedIdRef = useRef<number | null>(null);
 
-  // Keep refs in sync with state (avoids stale closure in interval)
   const updateChats = (data: ChatItem[]) => {
     chatsRef.current = data;
     setChats(data);
@@ -67,7 +67,6 @@ function ChefChat() {
     setSelectedId(id);
   };
 
-  // Derive selected chat from ID — always reads latest chats
   const selected = chats.find(c => c.customerId === selectedId) ?? null;
 
   const fetchChats = useCallback(async () => {
@@ -87,7 +86,6 @@ function ChefChat() {
     return () => clearInterval(interval);
   }, [fetchChats]);
 
-  // Scroll to bottom when conversation changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [selected?.messages?.length]);
@@ -97,7 +95,6 @@ function ChefChat() {
     const msgText = text.trim();
     setSending(true);
 
-    // Optimistic update — add message immediately
     const tempMsg = {
       id: Date.now(),
       customerId: selectedId,
@@ -119,19 +116,14 @@ function ChefChat() {
         headers: chefHeaders(),
         body: JSON.stringify({ customerId: selectedId, text: msgText }),
       });
-      // Refresh to get server-confirmed messages
       await fetchChats();
     } catch {}
     setSending(false);
   };
 
-  const totalUnread = chats.reduce((s, c) => s + c.unreadCount, 0);
-
-  // Conversation view
   if (selectedId !== null && selected) {
     return (
       <div className="flex flex-col" style={{ height: "calc(100vh - 145px)" }}>
-        {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur flex-none">
           <button onClick={() => selectCustomer(null)} className="p-1.5 rounded-xl hover:bg-muted transition-colors">
             <ArrowLeft className="w-5 h-5" />
@@ -145,7 +137,6 @@ function ChefChat() {
           </div>
         </div>
 
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {(selected.messages || []).length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-8">Hali xabarlar yo'q</div>
@@ -168,7 +159,6 @@ function ChefChat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
         <div className="border-t border-border px-3 py-3 flex gap-2 bg-background flex-none">
           <Input
             value={text}
@@ -194,7 +184,6 @@ function ChefChat() {
     );
   }
 
-  // Chat list
   return (
     <div className="space-y-2">
       {loading ? (
@@ -243,6 +232,173 @@ function ChefChat() {
   );
 }
 
+// ─── Customers Tab ─────────────────────────────────────────────────────────────
+
+function ChefCustomers() {
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchPhone, setSearchPhone] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [useCoinsId, setUseCoinsId] = useState<number | null>(null);
+  const [coinsAmount, setCoinsAmount] = useState("");
+  const [usingCoins, setUsingCoins] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const fetchCustomers = useCallback(async (phone?: string) => {
+    try {
+      const url = phone ? `/api/chef/customers?phone=${encodeURIComponent(phone)}` : "/api/chef/customers";
+      const r = await fetch(url, { headers: { "x-chef-token": "chef-authenticated" } });
+      if (r.ok) setCustomers(await r.json());
+    } catch {}
+    setLoading(false);
+    setSearching(false);
+  }, []);
+
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
+
+  const handleSearch = () => {
+    setSearching(true);
+    fetchCustomers(searchPhone.trim() || undefined);
+  };
+
+  const handleUseCoins = async (customerId: number, available: number) => {
+    const amount = parseInt(coinsAmount, 10);
+    if (!amount || amount <= 0) { alert("To'g'ri miqdor kiriting"); return; }
+    if (amount > available) { alert(`Foydalanuvchida faqat ${available} coin bor`); return; }
+    setUsingCoins(true);
+    try {
+      const r = await fetch(`/api/chef/customers/${customerId}/use-coins`, {
+        method: "POST",
+        headers: chefHeaders(),
+        body: JSON.stringify({ amount, reason: "Chef paneldan coin ishlatildi" }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setSuccessMsg(`✅ ${d.deducted} coin yechildi. Qolgan: ${d.newCoins} coin`);
+        setUseCoinsId(null);
+        setCoinsAmount("");
+        fetchCustomers(searchPhone.trim() || undefined);
+        setTimeout(() => setSuccessMsg(null), 3000);
+      } else {
+        const d = await r.json();
+        alert(d.error || "Xato yuz berdi");
+      }
+    } catch { alert("Server bilan aloqa yo'q"); }
+    setUsingCoins(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      {successMsg && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-2xl px-4 py-3 text-sm font-medium"
+        >
+          {successMsg}
+        </motion.div>
+      )}
+
+      <div className="flex gap-2">
+        <Input
+          value={searchPhone}
+          onChange={e => setSearchPhone(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSearch()}
+          placeholder="Telefon raqam bo'yicha qidirish..."
+          className="flex-1 rounded-xl h-11"
+        />
+        <Button onClick={handleSearch} disabled={searching} className="rounded-xl h-11 px-4">
+          {searching ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Search className="w-4 h-4" />}
+        </Button>
+      </div>
+
+      {loading ? (
+        Array(4).fill(0).map((_, i) => <div key={i} className="h-16 rounded-2xl bg-muted/40 animate-pulse" />)
+      ) : customers.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>Foydalanuvchilar topilmadi</p>
+        </div>
+      ) : (
+        customers.map(customer => (
+          <motion.div
+            key={customer.id}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card border border-border/50 rounded-2xl px-4 py-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-none">
+                  {(customer.name || customer.phone || "?")[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{customer.name || "—"}</p>
+                  <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 px-2.5 py-1 rounded-full">
+                  <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300">{customer.coins ?? 0}</span>
+                </div>
+                {(customer.coins ?? 0) > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setUseCoinsId(customer.id); setCoinsAmount(String(customer.coins)); }}
+                    className="rounded-xl text-xs h-8 border-amber-300 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                  >
+                    Coin ishlatish
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {useCoinsId === customer.id && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-3 border-t border-border/50 mt-3 flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      value={coinsAmount}
+                      onChange={e => setCoinsAmount(e.target.value)}
+                      placeholder={`Max: ${customer.coins}`}
+                      className="flex-1 rounded-xl h-9 text-sm"
+                      min="1"
+                      max={customer.coins}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => handleUseCoins(customer.id, customer.coins)}
+                      disabled={usingCoins}
+                      className="rounded-xl h-9 bg-amber-500 hover:bg-amber-600 text-white text-xs"
+                    >
+                      {usingCoins ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Yechildi"}
+                    </Button>
+                    <button
+                      onClick={() => { setUseCoinsId(null); setCoinsAmount(""); }}
+                      className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:bg-muted text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        ))
+      )}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ChefPanel() {
@@ -250,7 +406,7 @@ export default function ChefPanel() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
-  const [tab, setTab] = useState<"orders" | "messages">("orders");
+  const [tab, setTab] = useState<"orders" | "messages" | "customers">("orders");
   const [orders, setOrders] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -442,7 +598,7 @@ export default function ChefPanel() {
       <div className="flex border-b border-border/50 bg-background">
         <button
           onClick={() => setTab("orders")}
-          className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${tab === "orders" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+          className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${tab === "orders" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
         >
           <Package className="w-4 h-4" />
           Buyurtmalar
@@ -452,13 +608,20 @@ export default function ChefPanel() {
         </button>
         <button
           onClick={() => setTab("messages")}
-          className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${tab === "messages" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+          className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${tab === "messages" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
         >
           <MessageSquare className="w-4 h-4" />
           Chatlar
           {unreadCount > 0 && (
             <span className="bg-destructive text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{unreadCount}</span>
           )}
+        </button>
+        <button
+          onClick={() => setTab("customers")}
+          className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${tab === "customers" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+        >
+          <Users className="w-4 h-4" />
+          Mijozlar
         </button>
       </div>
 
@@ -513,6 +676,7 @@ export default function ChefPanel() {
         )}
 
         {tab === "messages" && <ChefChat />}
+        {tab === "customers" && <ChefCustomers />}
       </div>
     </div>
   );
@@ -532,8 +696,18 @@ function OrderCard({ order, expanded, onToggle, onStatus, updating }: any) {
             <Package className="w-5 h-5 text-orange-600" />
           </div>
           <div>
-            <p className="font-semibold text-sm">Buyurtma #{order.id}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-sm">Buyurtma #{order.id}</p>
+              {order.hasCoinProduct && (
+                <span className="flex items-center gap-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  🪙 Bonus
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString("uz-UZ")}</p>
+            {order.customerName && (
+              <p className="text-xs text-muted-foreground">{order.customerName} · {order.customerPhone}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -561,8 +735,8 @@ function OrderCard({ order, expanded, onToggle, onStatus, updating }: any) {
             {items.length > 0 && (
               <div className="space-y-1.5">
                 {items.map((item: any, i: number) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span>{item.name} × {item.quantity}</span>
+                  <div key={i} className="flex justify-between text-sm items-center gap-2">
+                    <span className="flex-1">{item.productName || item.name} × {item.quantity}</span>
                     <span className="font-medium">{(item.price * item.quantity).toLocaleString()} so'm</span>
                   </div>
                 ))}

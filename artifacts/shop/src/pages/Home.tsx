@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Search, MessageCircle, ShoppingBag, ShoppingCart, Check, X } from "lucide-react";
+import { Heart, Search, MessageCircle, ShoppingBag, ShoppingCart, Check, X, Coins } from "lucide-react";
 import { 
   useListProducts, 
   getListProductsQueryKey,
@@ -13,12 +13,15 @@ import {
   getGetSiteSettingsQueryKey,
   useAddToCart,
   getGetCartQueryKey,
+  useGetMe,
+  getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { isProductLiked, toggleLikedProduct } from "@/lib/liked-local";
+import { getCustomerSession } from "@/lib/auth";
 
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
@@ -29,10 +32,14 @@ export default function Home() {
   const [restInfo, setRestInfo] = useState<{ isOpen: boolean; closedReason?: string; nextWorkDay: string } | null>(null);
   const [showRestModal, setShowRestModal] = useState(false);
   const queryClient = useQueryClient();
+  const session = getCustomerSession();
 
   const { data: siteSettings } = useGetSiteSettings({ query: { queryKey: getGetSiteSettingsQueryKey() } });
   const siteName = siteSettings?.siteName || "ShopUz";
   const logoUrl = siteSettings?.logoUrl || null;
+
+  const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey(), enabled: !!session?.id } });
+  const coinBalance = (me as any)?.coins ?? 0;
 
   const { data: banners, isLoading: loadingBanners } = useListBanners({ query: { queryKey: getListBannersQueryKey() } });
   const { data: categories, isLoading: loadingCategories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
@@ -147,7 +154,7 @@ export default function Home() {
       {/* Header */}
       <div className="sticky top-0 z-40 glass-panel border-b border-white/20 dark:border-white/10 px-4 py-3 flex items-center justify-between">
         {logoUrl ? (
-          <img src={logoUrl} alt={siteName} className="h-12 w-auto max-w-[160px] object-contain" />
+          <img src={logoUrl} alt={siteName} className="h-12 w-auto max-w-[140px] object-contain" />
         ) : (
           <div className="flex items-center gap-1.5">
             <div className="w-7 h-7 rounded-xl bg-primary flex items-center justify-center">
@@ -159,11 +166,21 @@ export default function Home() {
             </h1>
           </div>
         )}
-        <Link href="/chat">
-          <Button variant="ghost" size="icon" className="rounded-full bg-muted/50 w-10 h-10">
-            <MessageCircle className="w-5 h-5 text-foreground" />
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {session?.id && (
+            <Link href="/profile">
+              <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 rounded-full px-2.5 py-1.5">
+                <Coins className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300">{coinBalance}</span>
+              </div>
+            </Link>
+          )}
+          <Link href="/chat">
+            <Button variant="ghost" size="icon" className="rounded-full bg-muted/50 w-10 h-10">
+              <MessageCircle className="w-5 h-5 text-foreground" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="px-4 mt-4 space-y-6">
@@ -227,6 +244,54 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        {/* Coin Products Section — only show when user is logged in */}
+        {session?.id && !search && !selectedCategory && (() => {
+          const coinProducts = productsData?.products.filter((p: any) => p.coinProduct && (p.coinThreshold ?? 0) > 0) ?? [];
+          if (coinProducts.length === 0) return null;
+          const unlocked = coinProducts.filter((p: any) => coinBalance >= (p.coinThreshold ?? 0));
+          const locked = coinProducts.filter((p: any) => coinBalance < (p.coinThreshold ?? 0));
+          if (unlocked.length === 0 && locked.length === 0) return null;
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Coins className="w-4 h-4 text-amber-500" />
+                <h2 className="text-base font-bold">Coin mahsulotlar</h2>
+              </div>
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 -mx-4 px-4">
+                {coinProducts.map((p: any) => {
+                  const isUnlocked = coinBalance >= (p.coinThreshold ?? 0);
+                  return (
+                    <Link key={p.id} href={isUnlocked ? `/product/${p.id}` : "#"}>
+                      <div className={`relative flex-none w-40 bg-card rounded-2xl p-3 border shadow-sm transition-all ${isUnlocked ? "border-amber-300 dark:border-amber-600" : "border-border/50 opacity-75"}`}>
+                        {!isUnlocked && (
+                          <div className="absolute inset-0 bg-white/40 dark:bg-black/30 rounded-2xl flex items-center justify-center z-10">
+                            <div className="text-center px-2">
+                              <div className="text-2xl mb-1">🔒</div>
+                              <div className="text-xs font-bold text-amber-700 dark:text-amber-300">{p.coinThreshold} coin kerak</div>
+                              <div className="text-xs text-muted-foreground">Sizda: {coinBalance}</div>
+                            </div>
+                          </div>
+                        )}
+                        {isUnlocked && (
+                          <div className="absolute top-2 left-2 z-10 flex items-center gap-0.5 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                            <Coins className="w-2.5 h-2.5" />
+                            {p.coinThreshold}+
+                          </div>
+                        )}
+                        <div className="aspect-square rounded-xl overflow-hidden mb-2 bg-muted/30">
+                          <img src={p.images?.[0] || "https://placehold.co/200"} alt={p.name} className="w-full h-full object-contain" />
+                        </div>
+                        <p className="text-xs font-semibold line-clamp-2 leading-tight mb-1">{p.name}</p>
+                        <p className="text-xs font-bold text-primary">{p.price.toLocaleString()} so'm</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 gap-4">
