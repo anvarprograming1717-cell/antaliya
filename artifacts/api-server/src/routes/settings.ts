@@ -60,15 +60,27 @@ router.post("/admin/logout", async (req, res): Promise<void> => {
 
 router.get("/site-settings", async (req, res): Promise<void> => {
   const map = await getAllMap();
-  res.json({ siteName: map.siteName ?? null, logoUrl: map.logoUrl ?? null });
+  res.json({
+    siteName: map.siteName ?? null,
+    logoUrl: map.logoUrl ?? null,
+    loginTitle: map.loginTitle ?? null,
+    loginSubtitle: map.loginSubtitle ?? null,
+  });
 });
 
 router.patch("/admin/site-settings", async (req, res): Promise<void> => {
-  const { siteName, logoUrl } = req.body;
+  const { siteName, logoUrl, loginTitle, loginSubtitle } = req.body;
   if (siteName !== undefined) await upsertSetting("siteName", siteName ?? "");
   if (logoUrl !== undefined) await upsertSetting("logoUrl", logoUrl ?? "");
+  if (loginTitle !== undefined) await upsertSetting("loginTitle", loginTitle ?? "");
+  if (loginSubtitle !== undefined) await upsertSetting("loginSubtitle", loginSubtitle ?? "");
   const map = await getAllMap();
-  res.json({ siteName: map.siteName ?? null, logoUrl: map.logoUrl ?? null });
+  res.json({
+    siteName: map.siteName ?? null,
+    logoUrl: map.logoUrl ?? null,
+    loginTitle: map.loginTitle ?? null,
+    loginSubtitle: map.loginSubtitle ?? null,
+  });
 });
 
 router.patch("/admin/chef-password", async (req, res): Promise<void> => {

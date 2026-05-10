@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShoppingBag, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useGetSiteSettings, getGetSiteSettingsQueryKey } from "@workspace/api-client-react";
 
 async function linkTelegramId(customerId: number, telegramId: string) {
   try {
@@ -28,6 +29,11 @@ export default function Login() {
   const searchCustomer = useSearchCustomer();
   const loginCustomer = useLoginCustomer();
   const telegramIdRef = useRef<string | null>(null);
+  const { data: siteSettings } = useGetSiteSettings({ query: { queryKey: getGetSiteSettingsQueryKey() } });
+
+  const logoUrl = (siteSettings as any)?.logoUrl || null;
+  const loginTitle = (siteSettings as any)?.loginTitle || "Xush kelibsiz";
+  const loginSubtitle = (siteSettings as any)?.loginSubtitle || "ShopUz tizimiga kirish";
 
   const [step, setStep] = useState<"tg-loading" | "phone" | "name">("phone");
   const [phone, setPhone] = useState("+998");
@@ -132,11 +138,20 @@ export default function Login() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-sm glass-panel p-8 rounded-[2rem] text-center"
       >
-        <div className="mx-auto w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-6">
-          <ShoppingBag className="w-8 h-8" />
-        </div>
-        <h1 className="text-2xl font-bold mb-2">Xush kelibsiz</h1>
-        <p className="text-muted-foreground mb-8">ShopUz tizimiga kirish</p>
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt="Logo"
+            className="mx-auto w-16 h-16 rounded-2xl object-contain mb-6"
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <div className="mx-auto w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-6">
+            <ShoppingBag className="w-8 h-8" />
+          </div>
+        )}
+        <h1 className="text-2xl font-bold mb-2">{loginTitle}</h1>
+        <p className="text-muted-foreground mb-8">{loginSubtitle}</p>
 
         {step === "tg-loading" && (
           <div className="flex flex-col items-center gap-3 py-4">

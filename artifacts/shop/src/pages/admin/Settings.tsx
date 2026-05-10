@@ -84,7 +84,7 @@ export default function Settings() {
 
   const [contactForm, setContactForm] = useState({ phone: "", telegram: "" });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
-  const [siteForm, setSiteForm] = useState({ siteName: "", logoUrl: "" });
+  const [siteForm, setSiteForm] = useState({ siteName: "", logoUrl: "", loginTitle: "", loginSubtitle: "" });
   const [contactSaved, setContactSaved] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [siteSaved, setSiteSaved] = useState(false);
@@ -130,7 +130,7 @@ export default function Settings() {
   }, [contact]);
 
   useEffect(() => {
-    if (siteSettings) setSiteForm({ siteName: siteSettings.siteName || "", logoUrl: siteSettings.logoUrl || "" });
+    if (siteSettings) setSiteForm({ siteName: siteSettings.siteName || "", logoUrl: siteSettings.logoUrl || "", loginTitle: (siteSettings as any).loginTitle || "", loginSubtitle: (siteSettings as any).loginSubtitle || "" });
   }, [siteSettings]);
 
   const handleSaveContact = () => {
@@ -142,7 +142,7 @@ export default function Settings() {
 
   const handleSaveSite = () => {
     updateSite.mutate(
-      { data: { siteName: siteForm.siteName || null, logoUrl: siteForm.logoUrl || null } },
+      { data: { siteName: siteForm.siteName || null, logoUrl: siteForm.logoUrl || null, loginTitle: (siteForm as any).loginTitle || null, loginSubtitle: (siteForm as any).loginSubtitle || null } },
       { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetSiteSettingsQueryKey() }); setSiteSaved(true); setTimeout(() => setSiteSaved(false), 2000); } }
     );
   };
@@ -261,6 +261,16 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">Logo ko'rinishi</p>
             </div>
           )}
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1">Login sahifasi sarlavhasi</label>
+          <Input value={(siteForm as any).loginTitle} onChange={e => setSiteForm(f => ({ ...f, loginTitle: e.target.value }))} placeholder="Xush kelibsiz" className="rounded-xl" />
+          <p className="text-xs text-muted-foreground mt-1">Kirish sahifasidagi katta matn (bo'sh qolsa "Xush kelibsiz" ko'rinadi)</p>
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1">Login sahifasi tavsifi</label>
+          <Input value={(siteForm as any).loginSubtitle} onChange={e => setSiteForm(f => ({ ...f, loginSubtitle: e.target.value }))} placeholder="ShopUz tizimiga kirish" className="rounded-xl" />
+          <p className="text-xs text-muted-foreground mt-1">Sarlavha ostidagi kichik matn</p>
         </div>
         <Button onClick={handleSaveSite} disabled={updateSite.isPending} className={`w-full rounded-xl ${siteSaved ? "bg-green-600 hover:bg-green-600" : ""}`} data-testid="button-save-site">
           {siteSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Saqlash"}
