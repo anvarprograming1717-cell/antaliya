@@ -62,6 +62,19 @@ function useSessionGuard() {
         setLocation("/login");
       }
     }).catch(() => {});
+
+    // If opened inside Telegram Mini App, always re-link telegramId
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      const telegramId = tg?.initDataUnsafe?.user?.id;
+      if (telegramId && session.id) {
+        fetch("/api/customers/link-telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-customer-id": String(session.id) },
+          body: JSON.stringify({ telegramId: String(telegramId) }),
+        }).catch(() => {});
+      }
+    } catch {}
   }, []);
 }
 

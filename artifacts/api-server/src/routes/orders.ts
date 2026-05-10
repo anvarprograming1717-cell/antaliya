@@ -175,12 +175,19 @@ router.post("/orders", async (req, res): Promise<void> => {
   const customer = await db.select().from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
   const customerName = customer[0]?.name ?? "Noma'lum";
   const customerPhone = customer[0]?.phone ?? "";
+  const customerTelegramId = customer[0]?.telegramId ?? null;
   const deliveryLabel = parsed.data.deliveryMethod === "delivery" ? "Yetkazib berish" : "Olib ketish";
   const paymentLabel = parsed.data.paymentMethod === "cash" ? "Naqd" : parsed.data.paymentMethod === "card" ? "Karta" : parsed.data.paymentMethod;
   const itemLines = enriched.items.map((i: any) => `  • ${i.productName} × ${i.quantity}`).join("\n");
   const tgText = `🛒 <b>Yangi buyurtma #${order.id}</b>\n👤 ${customerName} (${customerPhone})\n💰 ${enriched.totalPrice.toLocaleString()} so'm\n🚚 ${deliveryLabel} | 💳 ${paymentLabel}${parsed.data.address ? `\n📍 ${parsed.data.address}` : ""}${parsed.data.note ? `\n📝 ${parsed.data.note}` : ""}\n\n${itemLines}`;
   sendTelegramToAdmins(tgText).catch(() => {});
   sendTelegramToChefs(tgText).catch(() => {});
+
+  // Notify customer that order was placed
+  if (customerTelegramId) {
+    const customerText = `✅ <b>Buyurtmangiz qabul qilindi!</b>\n\n📦 Buyurtma #${order.id}\n💰 ${enriched.totalPrice.toLocaleString()} so'm\n🚚 ${deliveryLabel} | 💳 ${paymentLabel}${parsed.data.address ? `\n📍 ${parsed.data.address}` : ""}\n\n${itemLines}\n\nHodimlarimiz tez orada buyurtmangizni tayyorlashni boshlaydi.`;
+    sendTelegramToCustomer(customerTelegramId, customerText).catch(() => {});
+  }
 
   res.status(201).json(enriched);
 });
