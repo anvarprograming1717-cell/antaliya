@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
-import { getCustomerSession, getAdminSession } from "@/lib/auth";
+import { getCustomerSession, clearCustomerSession, getAdminSession } from "@/lib/auth";
 import { useEffect } from "react";
 import { LanguageProvider } from "@/lib/i18n";
 import React from "react";
@@ -51,8 +51,23 @@ globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   return _originalFetch(input, init);
 };
 
+function useSessionGuard() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    const session = getCustomerSession();
+    if (!session) return;
+    fetch("/api/customers/me").then((res) => {
+      if (res.status === 404 || res.status === 401) {
+        clearCustomerSession();
+        setLocation("/login");
+      }
+    }).catch(() => {});
+  }, []);
+}
+
 function CustomerRoute({ component: Component }: { component: React.ComponentType }) {
   const [, setLocation] = useLocation();
+  useSessionGuard();
   const session = getCustomerSession();
   useEffect(() => { if (!session) setLocation("/login"); }, []);
   if (!session) return null;

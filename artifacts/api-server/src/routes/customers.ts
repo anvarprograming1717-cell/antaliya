@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, customersTable } from "@workspace/db";
+import { getBotToken } from "../telegram";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,25 @@ router.get("/customers", async (req, res): Promise<void> => {
 router.delete("/customers/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [customer] = await db.select().from(customersTable).where(eq(customersTable.id, id));
+
+  if (customer?.telegramId) {
+    try {
+      const token = await getBotToken();
+      if (token) {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: customer.telegramId,
+            text: "❌ Sizning hisobingiz o'chirildi. Qayta foydalanish uchun ro'yxatdan o'ting.",
+          }),
+        });
+      }
+    } catch {}
+  }
+
   await db.delete(customersTable).where(eq(customersTable.id, id));
   res.json({ success: true });
 });
