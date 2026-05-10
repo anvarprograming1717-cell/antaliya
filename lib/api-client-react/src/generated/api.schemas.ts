@@ -136,10 +136,12 @@ export interface CartItem {
 
 export interface AddToCartBody {
   productId: number;
+  /** @minimum 1 */
   quantity?: number;
 }
 
 export interface UpdateCartItemBody {
+  /** @minimum 1 */
   quantity: number;
 }
 

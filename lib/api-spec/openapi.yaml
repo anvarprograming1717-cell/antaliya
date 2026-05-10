@@ -1411,6 +1411,7 @@ components:
           type: integer
         quantity:
           type: integer
+          minimum: 1
       required:
         - productId
 
@@ -1419,6 +1420,7 @@ components:
       properties:
         quantity:
           type: integer
+          minimum: 1
       required:
         - quantity
 

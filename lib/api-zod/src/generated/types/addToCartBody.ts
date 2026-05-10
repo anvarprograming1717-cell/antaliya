@@ -8,5 +8,6 @@
 
 export interface AddToCartBody {
   productId: number;
+  /** @minimum 1 */
   quantity?: number;
 }

@@ -303,9 +303,10 @@ export const GetCartResponse = zod.array(GetCartResponseItem);
 /**
  * @summary Add item to cart
  */
+
 export const AddToCartBody = zod.object({
   productId: zod.number(),
-  quantity: zod.number().optional(),
+  quantity: zod.number().min(1).optional(),
 });
 
 export const AddToCartResponse = zod.object({
@@ -336,7 +337,7 @@ export const UpdateCartItemParams = zod.object({
 });
 
 export const UpdateCartItemBody = zod.object({
-  quantity: zod.number(),
+  quantity: zod.number().min(1),
 });
 
 export const UpdateCartItemResponse = zod.object({

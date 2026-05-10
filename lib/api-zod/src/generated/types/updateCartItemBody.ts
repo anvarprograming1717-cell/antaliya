@@ -7,5 +7,6 @@
  */
 
 export interface UpdateCartItemBody {
+  /** @minimum 1 */
   quantity: number;
 }
