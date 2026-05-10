@@ -6,6 +6,8 @@ import {
   LoginCustomerBody,
   UpdateMeBody,
 } from "@workspace/api-zod";
+import crypto from "crypto";
+import { getBotToken } from "../telegram.js";
 
 function serializeCustomer(c: any) {
   return {
@@ -19,7 +21,73 @@ function serializeCustomer(c: any) {
   };
 }
 
+function validateTelegramInitData(
+  initData: string,
+  botToken: string
+): { valid: boolean; userId?: string; firstName?: string; username?: string } {
+  try {
+    const params = new URLSearchParams(initData);
+    const hash = params.get("hash");
+    if (!hash) return { valid: false };
+
+    params.delete("hash");
+    const entries = [...params.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const dataCheckString = entries.map(([k, v]) => `${k}=${v}`).join("\n");
+
+    const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
+    const computedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
+
+    if (computedHash !== hash) return { valid: false };
+
+    const userParam = params.get("user");
+    if (!userParam) return { valid: true };
+
+    const user = JSON.parse(userParam);
+    return {
+      valid: true,
+      userId: String(user.id),
+      firstName: user.first_name ?? undefined,
+      username: user.username ?? undefined,
+    };
+  } catch {
+    return { valid: false };
+  }
+}
+
 const router: IRouter = Router();
+
+router.post("/customers/telegram-auth", async (req, res): Promise<void> => {
+  const { initData } = req.body;
+  if (!initData) {
+    res.status(400).json({ error: "initData required" });
+    return;
+  }
+
+  const token = await getBotToken();
+  if (!token) {
+    res.status(400).json({ error: "Bot token not configured" });
+    return;
+  }
+
+  const { valid, userId, firstName } = validateTelegramInitData(initData, token);
+  if (!valid || !userId) {
+    res.status(401).json({ error: "Invalid initData" });
+    return;
+  }
+
+  // Find existing customer by telegramId
+  const existing = await db.select().from(customersTable)
+    .where(eq(customersTable.telegramId, userId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    res.json({ customer: serializeCustomer(existing[0]), telegramId: userId });
+    return;
+  }
+
+  // Not registered yet — return suggestedName so frontend can pre-fill
+  res.json({ customer: null, suggestedName: firstName ?? null, telegramId: userId });
+});
 
 router.post("/customers/search", async (req, res): Promise<void> => {
   const parsed = SearchCustomerBody.safeParse(req.body);

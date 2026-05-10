@@ -6,18 +6,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-function getTelegramUserId(): string | null {
-  try {
-    const tg = (window as any).Telegram?.WebApp;
-    const id = tg?.initDataUnsafe?.user?.id;
-    return id ? String(id) : null;
-  } catch {
-    return null;
-  }
-}
 
 async function linkTelegramId(customerId: number, telegramId: string) {
   try {
@@ -39,20 +29,45 @@ export default function Login() {
   const loginCustomer = useLoginCustomer();
   const telegramIdRef = useRef<string | null>(null);
 
-  const [step, setStep] = useState<"phone" | "name">("phone");
+  const [step, setStep] = useState<"tg-loading" | "phone" | "name">("phone");
   const [phone, setPhone] = useState("+998");
   const [name, setName] = useState("");
 
   useEffect(() => {
-    telegramIdRef.current = getTelegramUserId();
-    // Expand Telegram WebApp to full screen if inside bot
-    try {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg) {
-        tg.expand();
-        tg.ready();
-      }
-    } catch {}
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      tg.ready();
+    }
+
+    const initData = tg?.initData;
+    const telegramId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : null;
+    telegramIdRef.current = telegramId;
+
+    if (!initData) return;
+
+    // Auto-login via Telegram initData
+    setStep("tg-loading");
+    fetch("/api/customers/telegram-auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.customer) {
+          // Already registered & linked — auto-login
+          setCustomerSession(data.customer);
+          setLocation("/");
+        } else {
+          // Not yet linked — ask for phone, pre-fill name from Telegram
+          if (data.suggestedName) setName(data.suggestedName);
+          setStep("phone");
+        }
+      })
+      .catch(() => {
+        setStep("phone");
+      });
   }, []);
 
   const handlePhoneSubmit = (e: React.FormEvent) => {
@@ -120,7 +135,14 @@ export default function Login() {
         <h1 className="text-2xl font-bold mb-2">Xush kelibsiz</h1>
         <p className="text-muted-foreground mb-8">ShopUz tizimiga kirish</p>
 
-        {step === "phone" ? (
+        {step === "tg-loading" && (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Telegram orqali kirilmoqda...</p>
+          </div>
+        )}
+
+        {step === "phone" && (
           <form onSubmit={handlePhoneSubmit} className="space-y-4 text-left">
             <div className="space-y-2">
               <Label htmlFor="phone">Telefon raqam</Label>
@@ -143,7 +165,9 @@ export default function Login() {
               {searchCustomer.isPending ? "Kuting..." : "Davom etish"}
             </Button>
           </form>
-        ) : (
+        )}
+
+        {step === "name" && (
           <form onSubmit={handleNameSubmit} className="space-y-4 text-left">
             <div className="space-y-2">
               <Label htmlFor="name">Ismingiz</Label>
