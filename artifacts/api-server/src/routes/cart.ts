@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, cartTable, productsTable, categoriesTable, likedTable } from "@workspace/db";
+import { db, cartTable, productsTable, categoriesTable, likedTable, customersTable } from "@workspace/db";
 import {
   AddToCartBody,
   UpdateCartItemParams,
@@ -75,6 +75,28 @@ router.post("/cart", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  // Check if product is a coin product and validate balance
+  const [productCheck] = await db.select({
+    coinProduct: productsTable.coinProduct,
+    coinThreshold: productsTable.coinThreshold,
+  }).from(productsTable).where(eq(productsTable.id, parsed.data.productId)).limit(1);
+
+  if (productCheck?.coinProduct && (productCheck.coinThreshold ?? 0) > 0) {
+    const [customer] = await db.select({ coins: customersTable.coins })
+      .from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+    const coins = customer?.coins ?? 0;
+    if (coins < (productCheck.coinThreshold ?? 0)) {
+      res.status(403).json({
+        error: "not_enough_coins",
+        message: `Bu bonus mahsulot uchun ${productCheck.coinThreshold} coin kerak. Sizda ${coins} coin bor.`,
+        required: productCheck.coinThreshold,
+        current: coins,
+      });
+      return;
+    }
+  }
+
   const existing = await db.select().from(cartTable)
     .where(and(eq(cartTable.customerId, customerId), eq(cartTable.productId, parsed.data.productId)));
 

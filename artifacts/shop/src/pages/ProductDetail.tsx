@@ -22,8 +22,17 @@ export default function ProductDetail() {
   const [, setLikedVersion] = useState(0);
   const queryClient = useQueryClient();
 
+  const [coinBalance, setCoinBalance] = useState<number>(0);
+
   const { data: product, isLoading } = useGetProduct(id, { query: { enabled: !!id, queryKey: getGetProductQueryKey(id) } });
   const addToCart = useAddToCart();
+
+  useEffect(() => {
+    fetch("/api/coins/balance")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setCoinBalance(d.coins ?? 0); })
+      .catch(() => {});
+  }, []);
 
   const { data: relatedData } = useListProducts(
     { categoryId: product?.categoryId ?? undefined },
@@ -179,38 +188,59 @@ export default function ProductDetail() {
         )}
 
         {/* Miqdor + Savatga qo'shish */}
-        <div className="flex gap-3 items-center pt-2 pb-2">
-          <div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3 shrink-0">
-            <button
-              onClick={() => setQty(q => Math.max(1, q - 1))}
-              className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
-              data-testid="button-decrease-qty"
-            >
-              -
-            </button>
-            <span className="w-8 text-center font-bold text-base" data-testid="text-quantity">{qty}</span>
-            <button
-              onClick={() => setQty(q => q + 1)}
-              className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
-              data-testid="button-increase-qty"
-            >
-              +
-            </button>
-          </div>
+        {(() => {
+          const isCoin = (product as any).coinProduct;
+          const threshold = (product as any).coinThreshold ?? 0;
+          const isLocked = isCoin && threshold > 0 && coinBalance < threshold;
 
-          <Button
-            onClick={handleAddToCart}
-            disabled={!product.inStock || addToCart.isPending}
-            className={`flex-1 h-14 rounded-2xl text-base font-semibold transition-all min-w-0 ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
-            data-testid="button-add-to-cart"
-          >
-            {added ? (
-              <><Check className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Qo'shildi!</span></>
-            ) : (
-              <><ShoppingCart className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Savatchaga qo'shish</span></>
-            )}
-          </Button>
-        </div>
+          if (isLocked) {
+            return (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl p-4 flex items-center gap-3">
+                <span className="text-3xl">🔒</span>
+                <div>
+                  <p className="font-bold text-amber-700 dark:text-amber-300">Coinlar yetarli emas</p>
+                  <p className="text-sm text-muted-foreground">Bu bonus mahsulot uchun <span className="font-bold text-amber-600">{threshold} coin</span> kerak.</p>
+                  <p className="text-sm text-muted-foreground">Sizda hozir: <span className="font-bold">{coinBalance} coin</span></p>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex gap-3 items-center pt-2 pb-2">
+              <div className="flex items-center gap-3 bg-muted/50 rounded-2xl px-4 py-3 shrink-0">
+                <button
+                  onClick={() => setQty(q => Math.max(1, q - 1))}
+                  className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
+                  data-testid="button-decrease-qty"
+                >
+                  -
+                </button>
+                <span className="w-8 text-center font-bold text-base" data-testid="text-quantity">{qty}</span>
+                <button
+                  onClick={() => setQty(q => q + 1)}
+                  className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center font-bold text-lg"
+                  data-testid="button-increase-qty"
+                >
+                  +
+                </button>
+              </div>
+
+              <Button
+                onClick={handleAddToCart}
+                disabled={!product.inStock || addToCart.isPending}
+                className={`flex-1 h-14 rounded-2xl text-base font-semibold transition-all min-w-0 ${added ? "bg-green-600 hover:bg-green-600" : ""}`}
+                data-testid="button-add-to-cart"
+              >
+                {added ? (
+                  <><Check className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Qo'shildi!</span></>
+                ) : (
+                  <><ShoppingCart className="w-5 h-5 mr-2 shrink-0" /><span className="truncate">Savatchaga qo'shish</span></>
+                )}
+              </Button>
+            </div>
+          );
+        })()}
 
         {/* Tavsiya etilgan mahsulotlar */}
         {relatedProducts.length > 0 && (
