@@ -31,6 +31,13 @@ router.get("/products", async (req, res): Promise<void> => {
   const customerId = (req as any).customerId;
 
   let conditions: any[] = [];
+  const coinOnly = (req.query as any).coinOnly === "true";
+  if (coinOnly) {
+    conditions.push(eq(productsTable.coinProduct, true));
+  } else {
+    // Exclude coin products from the regular catalog
+    conditions.push(eq(productsTable.coinProduct, false));
+  }
   if (query.categoryId) {
     conditions.push(eq(productsTable.categoryId, query.categoryId));
   }

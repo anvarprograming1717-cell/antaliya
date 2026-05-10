@@ -38,6 +38,7 @@ export default function Home() {
 
   const [coinBalance, setCoinBalance] = useState(0);
   const [coinEnabled, setCoinEnabled] = useState(true);
+  const [coinProducts, setCoinProducts] = useState<any[]>([]);
 
   useEffect(() => {
     fetch("/api/coins/settings").then(r => r.ok ? r.json() : null).then(d => { if (d) setCoinEnabled(d.coinEnabled ?? true); }).catch(() => {});
@@ -47,6 +48,14 @@ export default function Home() {
     if (!session?.id) return;
     fetch("/api/coins/balance").then(r => r.ok ? r.json() : null).then(d => { if (d) { setCoinBalance(d.coins ?? 0); setCoinEnabled(d.coinEnabled ?? true); } }).catch(() => {});
   }, [session?.id]);
+
+  useEffect(() => {
+    if (!session?.id || !coinEnabled) return;
+    fetch("/api/products?coinOnly=true&limit=50")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.products) setCoinProducts(d.products); })
+      .catch(() => {});
+  }, [session?.id, coinEnabled]);
 
   const { data: banners, isLoading: loadingBanners } = useListBanners({ query: { queryKey: getListBannersQueryKey() } });
   const { data: categories, isLoading: loadingCategories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
@@ -254,11 +263,8 @@ export default function Home() {
 
         {/* Coin Products Section — only show when user is logged in and coin system is enabled */}
         {session?.id && coinEnabled && !search && !selectedCategory && (() => {
-          const coinProducts = productsData?.products.filter((p: any) => p.coinProduct && (p.coinThreshold ?? 0) > 0) ?? [];
-          if (coinProducts.length === 0) return null;
-          const unlocked = coinProducts.filter((p: any) => coinBalance >= (p.coinThreshold ?? 0));
-          const locked = coinProducts.filter((p: any) => coinBalance < (p.coinThreshold ?? 0));
-          if (unlocked.length === 0 && locked.length === 0) return null;
+          const filteredCoinProducts = coinProducts.filter((p: any) => (p.coinThreshold ?? 0) > 0);
+          if (filteredCoinProducts.length === 0) return null;
           return (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -266,7 +272,7 @@ export default function Home() {
                 <h2 className="text-base font-bold">Coin mahsulotlar</h2>
               </div>
               <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 -mx-4 px-4">
-                {coinProducts.map((p: any) => {
+                {filteredCoinProducts.map((p: any) => {
                   const isUnlocked = coinBalance >= (p.coinThreshold ?? 0);
                   return (
                     <Link key={p.id} href={isUnlocked ? `/product/${p.id}` : "#"}>
