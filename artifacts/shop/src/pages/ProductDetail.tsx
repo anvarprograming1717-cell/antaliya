@@ -146,22 +146,23 @@ export default function ProductDetail() {
         <h1 className="text-2xl font-bold" data-testid="text-product-name">{product.name}</h1>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-2xl font-black text-primary">
-            {(product.price as number).toLocaleString()} so'm
-            <span className="text-base font-semibold text-primary/70 ml-1">/{product.unit ?? "dona"}</span>
-          </span>
-          {product.oldPrice && (
-            <span className="text-base text-muted-foreground line-through">{(product.oldPrice as number).toLocaleString()} so'm</span>
-          )}
-          {product.oldPrice && (
-            <span className="bg-destructive/10 text-destructive text-xs font-bold px-2 py-1 rounded-full">
-              -{Math.round((1 - (product.price as number) / (product.oldPrice as number)) * 100)}%
-            </span>
-          )}
-          {(product as any).coinProduct && (
-            <span className="flex items-center gap-1 bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
-              🪙 Bonus mahsulot
-            </span>
+          {(product as any).coinProduct ? (
+            <span className="text-2xl font-black text-amber-600">🪙 Bonus mahsulot</span>
+          ) : (
+            <>
+              <span className="text-2xl font-black text-primary">
+                {(product.price as number).toLocaleString()} so'm
+                <span className="text-base font-semibold text-primary/70 ml-1">/{product.unit ?? "dona"}</span>
+              </span>
+              {product.oldPrice && (
+                <span className="text-base text-muted-foreground line-through">{(product.oldPrice as number).toLocaleString()} so'm</span>
+              )}
+              {product.oldPrice && (
+                <span className="bg-destructive/10 text-destructive text-xs font-bold px-2 py-1 rounded-full">
+                  -{Math.round((1 - (product.price as number) / (product.oldPrice as number)) * 100)}%
+                </span>
+              )}
+            </>
           )}
         </div>
 
