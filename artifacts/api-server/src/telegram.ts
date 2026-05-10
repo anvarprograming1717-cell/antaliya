@@ -101,18 +101,18 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
 
     const inlineButtons: any[][] = [];
     if (siteUrl) {
-      inlineButtons.push([{ text: "🛍 Menyu va buyurtma berish", web_app: { url: siteUrl } }]);
+      inlineButtons.push([{ text: "🛍 Menyu va buyurtma berish", url: siteUrl }]);
     }
     if (deliveryUrl && deliveryUrl !== siteUrl) {
-      inlineButtons.push([{ text: "🚚 Yetkazib berish xizmati", web_app: { url: deliveryUrl } }]);
+      inlineButtons.push([{ text: "🚚 Yetkazib berish xizmati", url: deliveryUrl }]);
     }
 
-    await sendMsg(token, chatId, welcomeText, { reply_markup: MAIN_KEYBOARD });
-
     if (inlineButtons.length > 0) {
-      await sendMsg(token, chatId, "👇 Saytga kirish:", {
+      await sendMsg(token, chatId, welcomeText, {
         reply_markup: { inline_keyboard: inlineButtons },
       });
+    } else {
+      await sendMsg(token, chatId, welcomeText, { reply_markup: MAIN_KEYBOARD });
     }
     return;
   }

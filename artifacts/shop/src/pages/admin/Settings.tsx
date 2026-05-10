@@ -112,7 +112,8 @@ export default function Settings() {
     fetch("/api/admin/work-schedule").then(r => r.json()).then(d => setWorkDays(d.workDays || [1, 2, 3, 4, 5, 6])).catch(() => {});
     fetch("/api/admin/bot-settings").then(r => r.json()).then(d => {
       setBotToken(d.botToken || "");
-      setBotSiteUrl(d.siteUrl || "");
+      // Auto-fill with current origin if empty
+      setBotSiteUrl(d.siteUrl || window.location.origin);
       setBotDeliveryUrl(d.deliveryUrl || "");
     }).catch(() => {});
   }, []);
