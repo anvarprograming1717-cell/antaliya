@@ -176,15 +176,38 @@ export default function Settings() {
   };
 
   const handleSaveBotSettings = async () => {
+    if (!botToken.trim()) return;
     setBotSaving(true);
+    setBotSaved(false);
+    setWebhookResult(null);
     try {
+      // 1. Save token + URLs
       await fetch("/api/admin/bot-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ botToken, siteUrl: botSiteUrl, deliveryUrl: botDeliveryUrl }),
       });
-      setBotSaved(true); setTimeout(() => setBotSaved(false), 2000);
-    } catch {}
+
+      // 2. Auto-register webhook using current domain
+      const autoWebhookUrl = `${window.location.origin}/api/telegram-webhook`;
+      const whr = await fetch("/api/admin/setup-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookUrl: autoWebhookUrl }),
+      });
+      const whd = await whr.json();
+      setWebhookResult({
+        success: whd.success,
+        msg: whd.success
+          ? `✅ Bot ulandi! Webhook: ${autoWebhookUrl}`
+          : `❌ Webhook xato: ${whd.description || whd.error}`,
+      });
+
+      setBotSaved(true);
+      setTimeout(() => setBotSaved(false), 3000);
+    } catch (e: any) {
+      setWebhookResult({ success: false, msg: `❌ Xato: ${e.message}` });
+    }
     setBotSaving(false);
   };
 
@@ -199,8 +222,8 @@ export default function Settings() {
         body: JSON.stringify({ webhookUrl: webhookUrl.trim() }),
       });
       const d = await r.json();
-      setWebhookResult({ success: d.success, msg: d.description || (d.success ? "Webhook o'rnatildi!" : "Xato") });
-    } catch { setWebhookResult({ success: false, msg: "Server bilan aloqa yo'q" }); }
+      setWebhookResult({ success: d.success, msg: d.description || (d.success ? "✅ Webhook o'rnatildi!" : "❌ Xato") });
+    } catch { setWebhookResult({ success: false, msg: "❌ Server bilan aloqa yo'q" }); }
     setWebhookLoading(false);
   };
 
@@ -260,11 +283,13 @@ export default function Settings() {
           <Bot className="w-5 h-5 text-blue-500" />
           <h3 className="font-bold">Telegram bot sozlamalari</h3>
         </div>
-        <p className="text-xs text-muted-foreground">Bot token va tugmalar URL ni kiriting. Foydalanuvchi /start ni yuborganda saytga o'tish tugmalari ko'rsatiladi.</p>
+        <p className="text-xs text-muted-foreground">
+          Bot tokenini kiriting va saqlang — webhook <b>avtomatik</b> ulanadi. Foydalanuvchi /start yuborganda saytga o'tish tugmalari chiqadi.
+        </p>
         <div>
           <label className="text-sm font-medium block mb-1">Bot token</label>
           <div className="relative"><Bot className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={botToken} onChange={e => setBotToken(e.target.value)} placeholder="123456789:AAF..." className="pl-9 rounded-xl font-mono text-xs" />
+            <Input value={botToken} onChange={e => setBotToken(e.target.value)} placeholder="123456789:AAFxxxxxxx" className="pl-9 rounded-xl font-mono text-xs" />
           </div>
           <p className="text-xs text-muted-foreground mt-1">@BotFather dan olingan token</p>
         </div>
@@ -273,6 +298,7 @@ export default function Settings() {
           <div className="relative"><Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={botSiteUrl} onChange={e => setBotSiteUrl(e.target.value)} placeholder="https://sizning-sayt.replit.app" className="pl-9 rounded-xl" />
           </div>
+          <p className="text-xs text-muted-foreground mt-1">Bo'sh qoldirsangiz sayt domeni avtomatik ishlatiladi</p>
         </div>
         <div>
           <label className="text-sm font-medium block mb-1">🚚 "Yetkazib berish" tugmasi URL</label>
@@ -280,29 +306,34 @@ export default function Settings() {
             <Input value={botDeliveryUrl} onChange={e => setBotDeliveryUrl(e.target.value)} placeholder="https://sizning-sayt.replit.app" className="pl-9 rounded-xl" />
           </div>
         </div>
-        <Button onClick={handleSaveBotSettings} disabled={botSaving} className={`w-full rounded-xl ${botSaved ? "bg-green-600 hover:bg-green-600" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
-          {botSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi!</> : "Bot sozlamalarini saqlash"}
+        {webhookResult && (
+          <div className={`p-3 rounded-xl text-sm break-all ${webhookResult.success ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-destructive/10 text-destructive"}`}>
+            {webhookResult.msg}
+          </div>
+        )}
+        <Button onClick={handleSaveBotSettings} disabled={botSaving || !botToken.trim()} className={`w-full rounded-xl ${botSaved ? "bg-green-600 hover:bg-green-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
+          {botSaving ? "Ulanmoqda..." : botSaved ? <><Check className="w-4 h-4 mr-2" /> Saqlandi va ulandi!</> : "Saqlash va webhookni ulash"}
         </Button>
       </motion.div>
 
-      {/* Webhook Setup */}
+      {/* Webhook Setup (manual / override) */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
         <div className="flex items-center gap-2">
           <Webhook className="w-5 h-5 text-purple-500" />
-          <h3 className="font-bold">Webhook ulash</h3>
+          <h3 className="font-bold">Webhook qo'lda ulash</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          Telegram botni serverga ulash uchun webhook URL kiriting. Format: <code className="bg-muted px-1 rounded text-xs">https://your-domain.replit.app/api/telegram-webhook</code>
+          Agar boshqa domen (masalan, deploy URL) bilan ulash kerak bo'lsa foydalaning. Odatda yuqoridagi tugma yetarli.
         </p>
         <div>
           <label className="text-sm font-medium block mb-1">Webhook URL</label>
-          <Input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://your-app.replit.app/api/telegram-webhook" className="rounded-xl text-xs font-mono" />
+          <Input
+            value={webhookUrl}
+            onChange={e => setWebhookUrl(e.target.value)}
+            placeholder={`${typeof window !== "undefined" ? window.location.origin : "https://your-app.replit.app"}/api/telegram-webhook`}
+            className="rounded-xl text-xs font-mono"
+          />
         </div>
-        {webhookResult && (
-          <div className={`p-3 rounded-xl text-sm ${webhookResult.success ? "bg-green-500/10 text-green-600" : "bg-destructive/10 text-destructive"}`}>
-            {webhookResult.success ? "✅" : "❌"} {webhookResult.msg}
-          </div>
-        )}
         <Button onClick={handleSetupWebhook} disabled={webhookLoading || !webhookUrl.trim()} className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 text-white">
           {webhookLoading ? "Ulanmoqda..." : "Webhookni ulash"}
         </Button>
