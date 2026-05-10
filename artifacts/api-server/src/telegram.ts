@@ -97,15 +97,15 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
 
   // /start command
   if (text === "/start") {
-    const welcomeText = `Assalomu aleykum, <b>${firstName}</b>! 👋\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nQuyidagi tugmalardan foydalaning 👇`;
-    const startKeyboard = siteUrl
-      ? {
-          inline_keyboard: [
-            [{ text: "🛍 Do'konni ochish", web_app: { url: siteUrl } }],
-          ],
-        }
-      : MAIN_KEYBOARD;
-    await sendMsg(token, chatId, welcomeText, { reply_markup: startKeyboard });
+    const welcomeText = `Assalomu aleykum, <b>${firstName}</b>! 👋\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nBuyurtma berish uchun quyidagi tugmani bosing 👇`;
+    await sendMsg(token, chatId, welcomeText, { reply_markup: MAIN_KEYBOARD });
+    if (siteUrl) {
+      await sendMsg(token, chatId, "🛍 Do'konni ochish:", {
+        reply_markup: {
+          inline_keyboard: [[{ text: "🛍 Do'konni ochish", web_app: { url: siteUrl } }]],
+        },
+      });
+    }
     return;
   }
 
@@ -113,10 +113,13 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
   if (text === "🛒 Savatcha") {
     const customers = await db.select().from(customersTable).where(eq(customersTable.telegramId, chatId)).limit(1);
     if (customers.length === 0) {
-      await sendMsg(token, chatId,
-        "❌ Siz hali saytga bog'lanmadingiz.\n\nSaytga kiring, profilingizdan Telegram raqamingizni bog'lang.",
-        { reply_markup: MAIN_KEYBOARD }
-      );
+      const notLinkedText = siteUrl
+        ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n3️⃣ Profilingizda <b>"Telegram botga ulanish"</b> tugmasini bosing\n\n<i>Yoki shunchaki telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
+        : `❌ Siz hali saytga bog'lanmadingiz.\n\nTelefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`;
+      const markup = siteUrl
+        ? { inline_keyboard: [[{ text: "🛍 Saytga o'tish", web_app: { url: siteUrl } }]] }
+        : MAIN_KEYBOARD;
+      await sendMsg(token, chatId, notLinkedText, { reply_markup: markup });
       return;
     }
     const customer = customers[0];
@@ -161,10 +164,13 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
   if (text === "📦 Buyurtmalarim") {
     const customers = await db.select().from(customersTable).where(eq(customersTable.telegramId, chatId)).limit(1);
     if (customers.length === 0) {
-      await sendMsg(token, chatId,
-        "❌ Siz hali saytga bog'lanmadingiz.\n\nSaytga kiring, profilingizdan Telegram raqamingizni bog'lang.",
-        { reply_markup: MAIN_KEYBOARD }
-      );
+      const notLinkedText = siteUrl
+        ? `❌ Siz hali saytga bog'lanmadingiz.\n\n<b>Bog'lash uchun:</b>\n1️⃣ Quyidagi tugmani bosib saytga kiring\n2️⃣ Ro'yxatdan o'ting\n3️⃣ Profilingizda <b>"Telegram botga ulanish"</b> tugmasini bosing\n\n<i>Yoki shunchaki telefon raqamingizni shu yerga yuboring:</i> <code>+998XXXXXXXXX</code>`
+        : `❌ Siz hali saytga bog'lanmadingiz.\n\nTelefon raqamingizni yuboring: <code>+998XXXXXXXXX</code>`;
+      const markup = siteUrl
+        ? { inline_keyboard: [[{ text: "🛍 Saytga o'tish", web_app: { url: siteUrl } }]] }
+        : MAIN_KEYBOARD;
+      await sendMsg(token, chatId, notLinkedText, { reply_markup: markup });
       return;
     }
     const customer = customers[0];

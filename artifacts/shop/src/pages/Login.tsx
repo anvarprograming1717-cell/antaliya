@@ -41,6 +41,7 @@ export default function Login() {
     }
 
     const initData = tg?.initData;
+    // Use initDataUnsafe for telegramId (available even without HMAC validation)
     const telegramId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : null;
     telegramIdRef.current = telegramId;
 
@@ -55,6 +56,8 @@ export default function Login() {
     })
       .then((r) => r.json())
       .then((data) => {
+        // If server returned a validated telegramId, prefer it over initDataUnsafe
+        if (data.telegramId) telegramIdRef.current = String(data.telegramId);
         if (data.customer) {
           // Already registered & linked — auto-login
           setCustomerSession(data.customer);

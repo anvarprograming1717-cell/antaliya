@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff } from "lucide-react";
+import { User, Phone, Moon, Sun, HelpCircle, LogOut, ChevronRight, Edit2, Check, X, MessageCircle, Send, Globe, Bell, BellOff, Link2, Link2Off, Loader2 } from "lucide-react";
 
 import {
   useGetMe, getGetMeQueryKey, useUpdateMe, useLogoutCustomer,
@@ -27,6 +27,14 @@ export default function Profile() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     localStorage.getItem("notificationsDisabled") !== "true"
   );
+  const [telegramLinking, setTelegramLinking] = useState(false);
+  const [telegramJustLinked, setTelegramJustLinked] = useState(false);
+  const [isInTelegramApp, setIsInTelegramApp] = useState(false);
+
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    setIsInTelegramApp(!!tg?.initDataUnsafe?.user?.id);
+  }, []);
 
   const { data: customer, isLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const { data: supportContact } = useGetSupportContact({ query: { queryKey: getGetSupportContactQueryKey() } });
@@ -67,6 +75,23 @@ export default function Profile() {
     setDarkMode(isDark);
     document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", isDark ? "dark" : "light");
+  };
+
+  const handleLinkTelegram = async () => {
+    const tg = (window as any).Telegram?.WebApp;
+    const telegramId = tg?.initDataUnsafe?.user?.id;
+    if (!telegramId || !session?.id) return;
+    setTelegramLinking(true);
+    try {
+      await fetch("/api/customers/link-telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-customer-id": String(session.id) },
+        body: JSON.stringify({ telegramId: String(telegramId) }),
+      });
+      setTelegramJustLinked(true);
+      queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+    } catch {}
+    setTelegramLinking(false);
   };
 
   const handleLogout = () => {
@@ -180,6 +205,56 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {/* Telegram Link Status */}
+        {(() => {
+          const isLinked = !!(customer as any)?.telegramId || telegramJustLinked;
+          if (isLinked) {
+            return (
+              <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-4">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center flex-none">
+                    <Link2 className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Telegram bot</p>
+                    <p className="text-xs text-green-500 font-medium">✓ Bog'langan — savatcha va buyurtmalar ishlaydi</p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          if (isInTelegramApp) {
+            return (
+              <button
+                onClick={handleLinkTelegram}
+                disabled={telegramLinking}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-2xl px-4 py-4 flex items-center gap-3 transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-none">
+                  {telegramLinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold">Telegram botga ulanish</p>
+                  <p className="text-xs text-white/70">Savatcha va buyurtmalar botda ko'rinadi</p>
+                </div>
+              </button>
+            );
+          }
+          return (
+            <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-4">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center flex-none">
+                  <Link2Off className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">Telegram bot</p>
+                  <p className="text-xs text-muted-foreground">Bot orqali saytni oching — avtomatik bog'lanadi</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Notifications toggle + list */}
         <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
