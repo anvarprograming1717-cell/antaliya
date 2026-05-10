@@ -118,8 +118,9 @@ export default function Settings() {
     }).catch(() => {});
     fetch("/api/admin/bot-settings").then(r => r.json()).then(d => {
       setBotToken(d.botToken || "");
-      // Auto-fill with current origin if empty
-      setBotSiteUrl(d.siteUrl || window.location.origin);
+      // Auto-fill with current origin (without port) if empty
+      const cleanOrigin = `${window.location.protocol}//${window.location.hostname}`;
+      setBotSiteUrl(d.siteUrl || cleanOrigin);
       setBotDeliveryUrl(d.deliveryUrl || "");
     }).catch(() => {});
   }, []);
@@ -195,8 +196,10 @@ export default function Settings() {
         body: JSON.stringify({ botToken, siteUrl: botSiteUrl, deliveryUrl: botDeliveryUrl }),
       });
 
-      // 2. Auto-register webhook using current domain
-      const autoWebhookUrl = `${window.location.origin}/api/telegram-webhook`;
+      // 2. Auto-register webhook using current domain (strip port — Telegram only allows 80/88/443/8443)
+      const { protocol, hostname } = window.location;
+      const cleanOrigin = `${protocol}//${hostname}`;
+      const autoWebhookUrl = `${cleanOrigin}/api/telegram-webhook`;
       const whr = await fetch("/api/admin/setup-webhook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -337,7 +340,7 @@ export default function Settings() {
           <Input
             value={webhookUrl}
             onChange={e => setWebhookUrl(e.target.value)}
-            placeholder={`${typeof window !== "undefined" ? window.location.origin : "https://your-app.replit.app"}/api/telegram-webhook`}
+            placeholder={`${typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}` : "https://your-app.replit.app"}/api/telegram-webhook`}
             className="rounded-xl text-xs font-mono"
           />
         </div>
