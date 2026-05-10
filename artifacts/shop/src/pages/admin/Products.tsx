@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Plus, Edit2, Trash2, X, Package, Upload, Link as LinkIcon, Star, Coins } from "lucide-react";
-import { useListProducts, getListProductsQueryKey, useCreateProduct, useUpdateProduct, useDeleteProduct, useListCategories, getListCategoriesQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCreateProduct, useUpdateProduct, useDeleteProduct, useListCategories, getListCategoriesQueryKey } from "@workspace/api-client-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,16 +50,26 @@ export default function Products() {
   const [imageMode, setImageMode] = useState<"url" | "upload">("url");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: productsData, isLoading } = useListProducts(
-    { search: search || undefined, categoryId: filterCategoryId, limit: 200 },
-    { query: { queryKey: getListProductsQueryKey({ search: search || undefined, categoryId: filterCategoryId, limit: 200 }) } }
-  );
+  const productsQueryKey = ["/api/products", "admin", search, filterCategoryId];
+  const { data: productsData, isLoading } = useQuery({
+    queryKey: productsQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams({ showAll: "true", limit: "200" });
+      if (search) params.set("search", search);
+      if (filterCategoryId) params.set("categoryId", String(filterCategoryId));
+      const res = await fetch(`/api/products?${params.toString()}`);
+      if (!res.ok) throw new Error("Mahsulotlarni yuklashda xato");
+      return res.json();
+    },
+  });
   const { data: categories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/products"] }).then(() =>
+    queryClient.invalidateQueries({ queryKey: productsQueryKey })
+  );
 
   const openCreate = () => {
     setEditId(null);

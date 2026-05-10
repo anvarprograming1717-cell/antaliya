@@ -32,12 +32,14 @@ router.get("/products", async (req, res): Promise<void> => {
 
   let conditions: any[] = [];
   const coinOnly = (req.query as any).coinOnly === "true";
+  const showAll = (req.query as any).showAll === "true";
   if (coinOnly) {
     conditions.push(eq(productsTable.coinProduct, true));
-  } else {
-    // Exclude coin products from the regular catalog
+  } else if (!showAll) {
+    // Exclude coin products from the regular catalog (customer-facing)
     conditions.push(eq(productsTable.coinProduct, false));
   }
+  // if showAll=true, no coin filter applied — used by admin panel
   if (query.categoryId) {
     conditions.push(eq(productsTable.categoryId, query.categoryId));
   }
