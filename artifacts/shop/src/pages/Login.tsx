@@ -152,7 +152,17 @@ export default function Login() {
               <Input
                 id="phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val.startsWith("+998")) setPhone("+998");
+                  else setPhone(val);
+                }}
+                onKeyDown={(e) => {
+                  // Prevent deleting into the +998 prefix
+                  if ((e.key === "Backspace" || e.key === "Delete") && phone === "+998") {
+                    e.preventDefault();
+                  }
+                }}
                 placeholder="+998 90 123 45 67"
                 className="h-12 rounded-xl bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 text-lg"
                 data-testid="input-phone"

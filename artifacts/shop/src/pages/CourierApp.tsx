@@ -205,35 +205,57 @@ export default function CourierApp() {
       return;
     }
 
-    // Acquire wake lock to keep screen/JS running
     acquireWakeLock();
-
-    // Use watchPosition — continuous tracking, works in background
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        sendLocation(session.id, pos.coords.latitude, pos.coords.longitude);
-        setSharing(true);
-        setLocationError("");
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          setLocationError("GPS ruxsati berilmadi. Qurilma sozlamalarini tekshiring.");
-          stopSharing();
-        } else if (!auto) {
-          // timeout / unavailable — only stop if user didn't manually start
-          // just keep trying silently for auto-resume
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 2000,
-        timeout: 15000,
-      }
-    );
-
-    watchIdRef.current = watchId;
     localStorage.setItem(GPS_KEY, "1");
     setSharing(true);
+
+    const beginWatch = (sessionId: number) => {
+      // Clear any existing watch first
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          sendLocation(sessionId, pos.coords.latitude, pos.coords.longitude);
+          setSharing(true);
+          setLocationError("");
+        },
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) {
+            // Only stop on explicit permission denial
+            setLocationError("GPS ruxsati berilmadi. Qurilma sozlamalarini tekshiring.");
+            localStorage.removeItem(GPS_KEY);
+            setSharing(false);
+            if (watchIdRef.current !== null) {
+              navigator.geolocation.clearWatch(watchIdRef.current);
+              watchIdRef.current = null;
+            }
+          } else {
+            // Timeout or unavailable — silently restart after 3s
+            if (watchIdRef.current !== null) {
+              navigator.geolocation.clearWatch(watchIdRef.current);
+              watchIdRef.current = null;
+            }
+            setTimeout(() => {
+              if (localStorage.getItem(GPS_KEY) === "1") {
+                beginWatch(sessionId);
+              }
+            }, 3000);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 3000,
+          timeout: 20000,
+        }
+      );
+
+      watchIdRef.current = watchId;
+    };
+
+    beginWatch(session.id);
   };
 
   const stopSharing = () => {
