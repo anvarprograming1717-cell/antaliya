@@ -51,7 +51,7 @@ export default function Checkout() {
   const [promoApplied, setPromoApplied] = useState<{ code: string; discountAmount: number } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
 
-  const [schedule, setSchedule] = useState<{ isOpen: boolean; nextWorkDay: string } | null>(null);
+  const [schedule, setSchedule] = useState<{ isOpen: boolean; closedReason?: string; nextWorkDay: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/work-schedule").then(r => r.json()).then(d => setSchedule(d)).catch(() => {});
@@ -428,11 +428,13 @@ export default function Checkout() {
             >
               <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-orange-700 dark:text-orange-400">Do'kon hozir yopiq</p>
+                <p className="text-sm font-bold text-orange-700 dark:text-orange-400">
+                  {schedule?.closedReason === "afterHours" ? "Ish vaqti tugadi" : schedule?.closedReason === "beforeHours" ? "Hali ochilmagan" : "Bugun dam olish kuni"}
+                </p>
                 <p className="text-sm text-orange-600 dark:text-orange-400 mt-0.5">
                   {schedule?.nextWorkDay
-                    ? `Keyingi ish kuni: ${schedule.nextWorkDay}. O'sha kuni buyurtma bera olasiz.`
-                    : "Ish kunlari belgilanmagan. Iltimos keyinroq urinib ko'ring."}
+                    ? `${schedule.closedReason === "beforeHours" ? "Ochilish vaqti" : "Keyingi ish vaqti"}: ${schedule.nextWorkDay}`
+                    : "Iltimos keyinroq urinib ko'ring."}
                 </p>
               </div>
             </motion.div>

@@ -26,7 +26,7 @@ export default function Home() {
   const [, setLikedVersion] = useState(0);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
-  const [restInfo, setRestInfo] = useState<{ isOpen: boolean; nextWorkDay: string } | null>(null);
+  const [restInfo, setRestInfo] = useState<{ isOpen: boolean; closedReason?: string; nextWorkDay: string } | null>(null);
   const [showRestModal, setShowRestModal] = useState(false);
   const queryClient = useQueryClient();
 
@@ -113,14 +113,22 @@ export default function Home() {
               transition={{ type: "spring", damping: 20 }}
               className="bg-card rounded-3xl p-7 max-w-sm w-full text-center shadow-2xl border border-border/50"
             >
-              <div className="text-5xl mb-4">🌙</div>
+              <div className="text-5xl mb-4">
+                {restInfo.closedReason === "afterHours" ? "🌙" : restInfo.closedReason === "beforeHours" ? "⏰" : "😴"}
+              </div>
               <h2 className="text-xl font-bold mb-3">Assalomu aleykum!</h2>
               <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-                Uzur, bugun biz dam olamiz. Hozircha buyurtma berish mumkin emas.
+                {restInfo.closedReason === "afterHours"
+                  ? "Ish vaqtimiz tugadi. Ertaga yangi kunda xizmatga tayyormiz!"
+                  : restInfo.closedReason === "beforeHours"
+                  ? "Hali ish vaqti boshlanmagan. Biroz sabr qiling!"
+                  : "Uzur, bugun biz dam olamiz. Hozircha buyurtma berish mumkin emas."}
               </p>
               {restInfo.nextWorkDay && (
                 <div className="bg-primary/10 rounded-2xl px-4 py-3 mb-5">
-                  <p className="text-xs text-muted-foreground mb-1">Keyingi ish kuni:</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {restInfo.closedReason === "beforeHours" ? "Ochilish vaqti:" : "Keyingi ish vaqti:"}
+                  </p>
                   <p className="font-bold text-primary capitalize">{restInfo.nextWorkDay}</p>
                 </div>
               )}

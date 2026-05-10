@@ -160,11 +160,25 @@ router.get("/work-schedule", async (req, res): Promise<void> => {
 
   const isOpen = isDayOpen && isTimeOpen;
 
+  // Determine closed reason for better UX messages
+  let closedReason: "dayOff" | "afterHours" | "beforeHours" | null = null;
+  if (!isOpen) {
+    if (!isDayOpen) closedReason = "dayOff";
+    else if (currentMinutes < startMinutes) closedReason = "beforeHours";
+    else closedReason = "afterHours";
+  }
+
   const dayNames = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
   let nextWorkDay = "";
   if (!isOpen) {
-    if (isDayOpen && !isTimeOpen && currentMinutes < startMinutes) {
+    if (closedReason === "beforeHours") {
       nextWorkDay = `Bugun ${workStart} da ochiladi`;
+    } else if (closedReason === "afterHours") {
+      // Check if there's still work today (it's past closing) — tomorrow or next day
+      for (let i = 1; i <= 7; i++) {
+        const nd = (todayDay + i) % 7;
+        if (workDays.includes(nd)) { nextWorkDay = `${dayNames[nd]} ${workStart} da`; break; }
+      }
     } else {
       for (let i = 1; i <= 7; i++) {
         const nd = (todayDay + i) % 7;
@@ -173,7 +187,7 @@ router.get("/work-schedule", async (req, res): Promise<void> => {
     }
   }
 
-  res.json({ isOpen, nextWorkDay, workDays, workStart, workEnd });
+  res.json({ isOpen, closedReason, nextWorkDay, workDays, workStart, workEnd });
 });
 
 // ── Telegram roles ────────────────────────────────────────────────────────────
