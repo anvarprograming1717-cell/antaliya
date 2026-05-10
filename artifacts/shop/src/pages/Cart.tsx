@@ -29,7 +29,10 @@ export default function Cart() {
     });
   };
 
-  const subtotal = cartItems?.reduce((sum, item) => sum + (item.product.price as number) * item.quantity, 0) || 0;
+  const subtotal = cartItems?.reduce((sum, item) => {
+    if ((item.product as any).coinProduct) return sum;
+    return sum + (item.product.price as number) * item.quantity;
+  }, 0) || 0;
   const DELIVERY_FEE = subtotal >= FREE_THRESHOLD ? 0 : DELIVERY_FEE_AMOUNT;
   const total = subtotal + DELIVERY_FEE;
 
@@ -88,8 +91,14 @@ export default function Cart() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-sm line-clamp-2 mb-1">{item.product.name}</h3>
-                  <p className="text-primary font-bold">{((item.product.price as number) * item.quantity).toLocaleString()} so'm</p>
-                  <p className="text-xs text-muted-foreground">{(item.product.price as number).toLocaleString()} so'm/dona</p>
+                  {(item.product as any).coinProduct ? (
+                    <p className="text-amber-600 font-bold">bonus</p>
+                  ) : (
+                    <>
+                      <p className="text-primary font-bold">{((item.product.price as number) * item.quantity).toLocaleString()} so'm</p>
+                      <p className="text-xs text-muted-foreground">{(item.product.price as number).toLocaleString()} so'm/dona</p>
+                    </>
+                  )}
                 </div>
                 <div className="flex flex-col items-end justify-between">
                   <button onClick={() => handleRemove(item.id)} className="text-destructive" data-testid={`button-remove-${item.id}`}>
