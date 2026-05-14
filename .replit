@@ -42,13 +42,13 @@ waitForPort = 8080
 name = "Start application"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=24349 BASE_PATH=/ pnpm --filter @workspace/shop run dev"
-waitForPort = 24349
-
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=5000 BASE_PATH=/ pnpm --filter @workspace/shop run dev"
+waitForPort = 5000
 
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
@@ -63,12 +63,12 @@ localPort = 3099
 externalPort = 3001
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
+localPort = 5000
+externalPort = 80
 
 [[ports]]
-localPort = 8081
-externalPort = 80
+localPort = 8080
+externalPort = 8080
 
 [[ports]]
 localPort = 8082
