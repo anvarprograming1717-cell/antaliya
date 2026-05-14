@@ -144,6 +144,7 @@ export default function Login() {
       }
 
       setStep("tg-loading");
+      const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
       fetch("/api/telegram/register-contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,6 +153,7 @@ export default function Login() {
           firstName: fn,
           lastName: ln,
           telegramId: tid,
+          username: tgUser?.username ?? null,
           initData: initDataRef.current,
         }),
       })

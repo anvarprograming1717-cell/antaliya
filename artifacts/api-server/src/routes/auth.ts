@@ -14,9 +14,11 @@ function serializeCustomer(c: any) {
     id: c.id,
     phone: c.phone,
     name: c.name ?? null,
-    avatarUrl: c.avatarUrl ?? null,
+    avatarUrl: c.telegramPhoto ?? c.avatarUrl ?? null,
     language: c.language ?? null,
     telegramId: c.telegramId ?? null,
+    telegramUsername: c.telegramUsername ?? null,
+    telegramPhoto: c.telegramPhoto ?? null,
     coins: c.coins ?? 0,
     createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
   };
@@ -197,9 +199,26 @@ function normalizePhone(raw: string): string {
   return "+" + digits;
 }
 
+// Fetch Telegram profile photo URL from Bot API
+async function fetchTelegramPhoto(token: string, userId: string): Promise<string | null> {
+  try {
+    const photosRes = await fetch(`https://api.telegram.org/bot${token}/getUserProfilePhotos?user_id=${userId}&limit=1`);
+    const photosData: any = await photosRes.json();
+    const fileId = photosData?.result?.photos?.[0]?.[0]?.file_id;
+    if (!fileId) return null;
+    const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+    const fileData: any = await fileRes.json();
+    const filePath = fileData?.result?.file_path;
+    if (!filePath) return null;
+    return `https://api.telegram.org/file/bot${token}/${filePath}`;
+  } catch {
+    return null;
+  }
+}
+
 // Register/link customer via Telegram contact (called from Mini App after requestContact)
 router.post("/telegram/register-contact", async (req, res): Promise<void> => {
-  const { phone, firstName, lastName, telegramId, initData } = req.body;
+  const { phone, firstName, lastName, telegramId, username, initData } = req.body;
 
   if (!telegramId) {
     res.status(400).json({ error: "telegramId required" });
@@ -207,23 +226,29 @@ router.post("/telegram/register-contact", async (req, res): Promise<void> => {
   }
 
   // Optional: validate initData if provided
+  const token = await getBotToken();
   let validatedTelegramId: string = String(telegramId);
-  if (initData) {
-    const token = await getBotToken();
-    if (token) {
-      const { valid, userId } = validateTelegramInitData(initData, token);
-      if (valid && userId) validatedTelegramId = userId;
-    }
+  if (initData && token) {
+    const { valid, userId } = validateTelegramInitData(initData, token);
+    if (valid && userId) validatedTelegramId = userId;
   }
 
   const tid = validatedTelegramId;
+  const tgUsername: string | null = username ? String(username) : null;
+
+  // Fetch Telegram profile photo
+  const tgPhotoUrl = token ? await fetchTelegramPhoto(token, tid) : null;
 
   // 1. Check if already linked by telegramId
   const byTelegram = await db.select().from(customersTable)
     .where(eq(customersTable.telegramId, tid)).limit(1);
   if (byTelegram.length > 0) {
-    // Already registered & linked
-    res.json({ customer: serializeCustomer(byTelegram[0]), isNew: false });
+    // Update photo/username if changed
+    const [updated] = await db.update(customersTable)
+      .set({ telegramUsername: tgUsername, telegramPhoto: tgPhotoUrl ?? byTelegram[0].telegramPhoto })
+      .where(eq(customersTable.id, byTelegram[0].id))
+      .returning();
+    res.json({ customer: serializeCustomer(updated), isNew: false });
     return;
   }
 
@@ -232,7 +257,6 @@ router.post("/telegram/register-contact", async (req, res): Promise<void> => {
     const normalizedPhone = normalizePhone(phone);
     const suffix = normalizedPhone.replace(/[^\d]/g, "").slice(-9);
 
-    // Search all customers for suffix match
     const allCustomers = await db.select().from(customersTable);
     const matched = allCustomers.find(c => {
       if (!c.phone) return false;
@@ -241,9 +265,13 @@ router.post("/telegram/register-contact", async (req, res): Promise<void> => {
     });
 
     if (matched) {
-      // Link telegramId to existing customer
       const [updated] = await db.update(customersTable)
-        .set({ telegramId: tid, name: matched.name || (firstName ?? null) })
+        .set({
+          telegramId: tid,
+          name: matched.name || (firstName ?? null),
+          telegramUsername: tgUsername,
+          telegramPhoto: tgPhotoUrl,
+        })
         .where(eq(customersTable.id, matched.id))
         .returning();
       res.json({ customer: serializeCustomer(updated), isNew: false });
@@ -256,6 +284,8 @@ router.post("/telegram/register-contact", async (req, res): Promise<void> => {
       phone: normalizedPhone,
       name: fullName,
       telegramId: tid,
+      telegramUsername: tgUsername,
+      telegramPhoto: tgPhotoUrl,
     }).returning();
     res.json({ customer: serializeCustomer(created), isNew: true });
     return;

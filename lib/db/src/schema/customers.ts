@@ -9,6 +9,8 @@ export const customersTable = pgTable("customers", {
   avatarUrl: text("avatar_url"),
   language: text("language").default("uz"),
   telegramId: text("telegram_id"),
+  telegramUsername: text("telegram_username"),
+  telegramPhoto: text("telegram_photo"),
   savedAddress: text("saved_address"),
   coins: integer("coins").notNull().default(0),
   lastNotificationReadAt: timestamp("last_notification_read_at", { withTimezone: true }),

@@ -28,6 +28,22 @@ export async function getCourierIds(): Promise<string[]> {
   try { return JSON.parse(map.telegramCourierIds || "[]"); } catch { return []; }
 }
 
+async function fetchTelegramPhoto(token: string, userId: string): Promise<string | null> {
+  try {
+    const photosRes = await fetch(`https://api.telegram.org/bot${token}/getUserProfilePhotos?user_id=${userId}&limit=1`);
+    const photosData: any = await photosRes.json();
+    const fileId = photosData?.result?.photos?.[0]?.[0]?.file_id;
+    if (!fileId) return null;
+    const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+    const fileData: any = await fileRes.json();
+    const filePath = fileData?.result?.file_path;
+    if (!filePath) return null;
+    return `https://api.telegram.org/file/bot${token}/${filePath}`;
+  } catch {
+    return null;
+  }
+}
+
 async function sendMsg(token: string, chatId: string, text: string, extra?: object): Promise<void> {
   try {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -119,10 +135,34 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
 
   const MAIN_KEYBOARD = makeMainKeyboard(coinEnabled, siteUrl);
 
-  // /start command — send ONE combined message
+  // /start command
   if (text === "/start") {
-    const welcomeText = `Assalomu aleykum, <b>${firstName}</b>! 👋\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nBuyurtma berish uchun quyidagi menyudan foydalaning 👇`;
-    await sendMsg(token, chatId, welcomeText, { reply_markup: MAIN_KEYBOARD });
+    // Check if already linked
+    const existingCustomer = await db.select().from(customersTable)
+      .where(eq(customersTable.telegramId, chatId)).limit(1);
+
+    if (existingCustomer.length > 0) {
+      const c = existingCustomer[0];
+      const greeting = c.name ? `Assalomu aleykum, <b>${c.name}</b>! 👋` : `Assalomu aleykum! 👋`;
+      const welcomeBack = `${greeting}\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nQuyidagi menyudan foydalaning 👇`;
+      await sendMsg(token, chatId, welcomeBack, { reply_markup: MAIN_KEYBOARD });
+    } else {
+      const welcomeText = `Assalomu aleykum, <b>${firstName}</b>! 👋\n\n<b>${siteName}</b>ga xush kelibsiz!\n\nBuyurtma berish uchun kontaktni ulashish tugmasini bosing 👇`;
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: welcomeText,
+          parse_mode: "HTML",
+          reply_markup: {
+            keyboard: [[{ text: "📱 Kontaktni ulashish", request_contact: true }]],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          },
+        }),
+      });
+    }
     return;
   }
 
@@ -293,11 +333,20 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
       return cd === digits || cd.endsWith(suffix);
     });
 
+    // Fetch Telegram profile photo
+    const tgPhotoUrl = await fetchTelegramPhoto(token, chatId);
+    const tgUsername: string | null = message.from?.username ?? null;
+
     let customer;
     if (matched) {
-      // Link telegramId to existing customer
+      // Link telegramId to existing customer + save photo/username
       const [updated] = await db.update(customersTable)
-        .set({ telegramId: chatId, name: matched.name || contactFirstName })
+        .set({
+          telegramId: chatId,
+          name: matched.name || contactFirstName,
+          telegramUsername: tgUsername,
+          telegramPhoto: tgPhotoUrl,
+        })
         .where(eq(customersTable.id, matched.id))
         .returning();
       customer = updated;
@@ -308,6 +357,8 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
         phone: normalizedPhone,
         name: fullName,
         telegramId: chatId,
+        telegramUsername: tgUsername,
+        telegramPhoto: tgPhotoUrl,
       }).returning();
       customer = created;
     }
