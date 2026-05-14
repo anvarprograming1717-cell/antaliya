@@ -13,6 +13,9 @@ async function getDeliverySettings() {
     deliveryFee: parseFloat(map.deliveryFee ?? "15000"),
     freeDeliveryThreshold: parseFloat(map.freeDeliveryThreshold ?? "200000"),
     estimatedMinutes: parseInt(map.estimatedMinutes ?? "45"),
+    deliveryServiceType: (map.deliveryServiceType ?? "courier") as "courier" | "taxi",
+    taxiLink: map.taxiLink ?? "",
+    taxiPhone: map.taxiPhone ?? "",
   };
 }
 
@@ -39,6 +42,9 @@ router.patch("/delivery", async (req, res): Promise<void> => {
   if (parsed.data.deliveryFee != null) await upsertSetting("deliveryFee", String(parsed.data.deliveryFee));
   if (parsed.data.freeDeliveryThreshold != null) await upsertSetting("freeDeliveryThreshold", String(parsed.data.freeDeliveryThreshold));
   if (parsed.data.estimatedMinutes != null) await upsertSetting("estimatedMinutes", String(parsed.data.estimatedMinutes));
+  if (req.body.deliveryServiceType != null) await upsertSetting("deliveryServiceType", String(req.body.deliveryServiceType));
+  if (req.body.taxiLink != null) await upsertSetting("taxiLink", String(req.body.taxiLink));
+  if (req.body.taxiPhone != null) await upsertSetting("taxiPhone", String(req.body.taxiPhone));
   const settings = await getDeliverySettings();
   res.json(settings);
 });

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Circle, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Truck, Check, Info, Search, X, MapPin } from "lucide-react";
+import { Truck, Check, Info, Search, X, MapPin, Car, User } from "lucide-react";
 import { useGetDeliverySettings, getGetDeliverySettingsQueryKey, useUpdateDeliverySettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,14 @@ export default function Delivery() {
   const [zoneSaved, setZoneSaved] = useState(false);
   const [zoneSaving, setZoneSaving] = useState(false);
 
-  const [form, setForm] = useState({ deliveryFee: "", freeDeliveryThreshold: "", estimatedMinutes: "" });
+  const [form, setForm] = useState({
+    deliveryFee: "",
+    freeDeliveryThreshold: "",
+    estimatedMinutes: "",
+    deliveryServiceType: "courier" as "courier" | "taxi",
+    taxiLink: "",
+    taxiPhone: "",
+  });
   const [zone, setZone] = useState<{ lat: number | null; lng: number | null; radiusKm: number }>({ lat: null, lng: null, radiusKm: 5 });
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -84,6 +91,9 @@ export default function Delivery() {
         deliveryFee: String(settings.deliveryFee),
         freeDeliveryThreshold: String(settings.freeDeliveryThreshold),
         estimatedMinutes: String(settings.estimatedMinutes),
+        deliveryServiceType: ((settings as any).deliveryServiceType ?? "courier") as "courier" | "taxi",
+        taxiLink: (settings as any).taxiLink ?? "",
+        taxiPhone: (settings as any).taxiPhone ?? "",
       });
     }
   }, [settings]);
@@ -109,8 +119,16 @@ export default function Delivery() {
   }, []);
 
   const handleSave = () => {
+    const body = {
+      deliveryFee: parseFloat(form.deliveryFee),
+      freeDeliveryThreshold: parseFloat(form.freeDeliveryThreshold),
+      estimatedMinutes: parseInt(form.estimatedMinutes),
+      deliveryServiceType: form.deliveryServiceType,
+      taxiLink: form.taxiLink,
+      taxiPhone: form.taxiPhone,
+    };
     updateSettings.mutate(
-      { data: { deliveryFee: parseFloat(form.deliveryFee), freeDeliveryThreshold: parseFloat(form.freeDeliveryThreshold), estimatedMinutes: parseInt(form.estimatedMinutes) } },
+      { data: body as any },
       { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetDeliverySettingsQueryKey() }); setSaved(true); setTimeout(() => setSaved(false), 2000); } }
     );
   };
@@ -149,6 +167,57 @@ export default function Delivery() {
         </div>
         <h1 className="text-2xl font-bold">Yetkazib berish</h1>
       </div>
+
+      {/* Delivery service type */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-4">
+        <h3 className="font-bold">Yetkazib berish turi</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setForm(f => ({ ...f, deliveryServiceType: "courier" }))}
+            className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all ${form.deliveryServiceType === "courier" ? "border-primary bg-primary/5" : "border-border hover:border-border/80"}`}
+          >
+            <User className={`w-7 h-7 ${form.deliveryServiceType === "courier" ? "text-primary" : "text-muted-foreground"}`} />
+            <div className="text-center">
+              <p className={`font-semibold text-sm ${form.deliveryServiceType === "courier" ? "text-primary" : ""}`}>O'z kuryer</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Kuryer ilovasi</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setForm(f => ({ ...f, deliveryServiceType: "taxi" }))}
+            className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all ${form.deliveryServiceType === "taxi" ? "border-primary bg-primary/5" : "border-border hover:border-border/80"}`}
+          >
+            <Car className={`w-7 h-7 ${form.deliveryServiceType === "taxi" ? "text-primary" : "text-muted-foreground"}`} />
+            <div className="text-center">
+              <p className={`font-semibold text-sm ${form.deliveryServiceType === "taxi" ? "text-primary" : ""}`}>Taxi / Yandex</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Tashqi xizmat</p>
+            </div>
+          </button>
+        </div>
+
+        {form.deliveryServiceType === "taxi" && (
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="text-sm font-semibold block mb-1.5">Taxi havolasi (Yandex Go / boshqa)</label>
+              <Input
+                value={form.taxiLink}
+                onChange={e => setForm(f => ({ ...f, taxiLink: e.target.value }))}
+                placeholder="https://3.redirect.appmetrica.yandex.com/..."
+                className="rounded-xl h-11"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Mijozga buyurtma sahifasida ko'rsatiladi</p>
+            </div>
+            <div>
+              <label className="text-sm font-semibold block mb-1.5">Taxi telefon raqami</label>
+              <Input
+                value={form.taxiPhone}
+                onChange={e => setForm(f => ({ ...f, taxiPhone: e.target.value }))}
+                placeholder="+998901234567"
+                className="rounded-xl h-11"
+              />
+            </div>
+          </div>
+        )}
+      </motion.div>
 
       {/* Price settings */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border/50 p-6 space-y-5">

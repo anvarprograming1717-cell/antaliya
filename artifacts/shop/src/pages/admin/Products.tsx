@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Plus, Edit2, Trash2, X, Package, Upload, Link as LinkIcon, Star, Coins } from "lucide-react";
-import { useCreateProduct, useUpdateProduct, useDeleteProduct, useListCategories, getListCategoriesQueryKey } from "@workspace/api-client-react";
+import { useDeleteProduct, useListCategories, getListCategoriesQueryKey } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,9 +63,8 @@ export default function Products() {
     },
   });
   const { data: categories } = useListCategories({ query: { queryKey: getListCategoriesQueryKey() } });
-  const createProduct = useCreateProduct();
-  const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const [saving, setSaving] = useState(false);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/products"] }).then(() =>
     queryClient.invalidateQueries({ queryKey: productsQueryKey })
@@ -121,7 +120,7 @@ export default function Products() {
     const priceNum = parseFloat(form.price);
     if (!form.price || isNaN(priceNum) || priceNum <= 0) { alert("To'g'ri narx kiriting!"); return; }
 
-    const data = {
+    const body = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       price: priceNum,
@@ -135,22 +134,26 @@ export default function Products() {
       coinThreshold: form.coinProduct ? (parseInt(form.coinThreshold) || 0) : 0,
     };
 
-    if (editId) {
-      updateProduct.mutate(
-        { id: editId, data },
-        {
-          onSuccess: () => { invalidate(); setShowModal(false); },
-          onError: (err: any) => alert("Xato: " + (err?.message || JSON.stringify(err))),
-        }
-      );
-    } else {
-      createProduct.mutate(
-        { data: data as any },
-        {
-          onSuccess: () => { invalidate(); setShowModal(false); },
-          onError: (err: any) => alert("Xato: " + (err?.message || JSON.stringify(err))),
-        }
-      );
+    setSaving(true);
+    try {
+      const url = editId ? `/api/products/${editId}` : "/api/products";
+      const method = editId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert("Xato: " + (err?.error || res.statusText));
+        return;
+      }
+      await invalidate();
+      setShowModal(false);
+    } catch (e: any) {
+      alert("Xato: " + e.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -430,11 +433,11 @@ export default function Products() {
 
               <Button
                 onClick={handleSave}
-                disabled={!form.name || !form.price || createProduct.isPending || updateProduct.isPending || uploading}
+                disabled={!form.name || !form.price || saving || uploading}
                 className="w-full rounded-xl"
                 data-testid="button-save-product"
               >
-                {editId ? "Saqlash" : "Qo'shish"}
+                {saving ? "Saqlanmoqda..." : editId ? "Saqlash" : "Qo'shish"}
               </Button>
             </div>
           </motion.div>
