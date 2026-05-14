@@ -188,4 +188,97 @@ router.post("/customers/logout", async (req, res): Promise<void> => {
   res.json({ success: true });
 });
 
+// Normalize Telegram phone_number to +998XXXXXXXXX format
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/[^\d]/g, "");
+  if (digits.startsWith("998") && digits.length === 12) return "+" + digits;
+  if (digits.startsWith("8") && digits.length === 11) return "+7" + digits.slice(1);
+  if (digits.length === 9) return "+998" + digits;
+  return "+" + digits;
+}
+
+// Register/link customer via Telegram contact (called from Mini App after requestContact)
+router.post("/telegram/register-contact", async (req, res): Promise<void> => {
+  const { phone, firstName, lastName, telegramId, initData } = req.body;
+
+  if (!telegramId) {
+    res.status(400).json({ error: "telegramId required" });
+    return;
+  }
+
+  // Optional: validate initData if provided
+  let validatedTelegramId: string = String(telegramId);
+  if (initData) {
+    const token = await getBotToken();
+    if (token) {
+      const { valid, userId } = validateTelegramInitData(initData, token);
+      if (valid && userId) validatedTelegramId = userId;
+    }
+  }
+
+  const tid = validatedTelegramId;
+
+  // 1. Check if already linked by telegramId
+  const byTelegram = await db.select().from(customersTable)
+    .where(eq(customersTable.telegramId, tid)).limit(1);
+  if (byTelegram.length > 0) {
+    // Already registered & linked
+    res.json({ customer: serializeCustomer(byTelegram[0]), isNew: false });
+    return;
+  }
+
+  // 2. Find by phone if provided
+  if (phone) {
+    const normalizedPhone = normalizePhone(phone);
+    const suffix = normalizedPhone.replace(/[^\d]/g, "").slice(-9);
+
+    // Search all customers for suffix match
+    const allCustomers = await db.select().from(customersTable);
+    const matched = allCustomers.find(c => {
+      if (!c.phone) return false;
+      const cd = c.phone.replace(/[^\d]/g, "");
+      return cd === normalizedPhone.replace(/[^\d]/g, "") || cd.endsWith(suffix);
+    });
+
+    if (matched) {
+      // Link telegramId to existing customer
+      const [updated] = await db.update(customersTable)
+        .set({ telegramId: tid, name: matched.name || (firstName ?? null) })
+        .where(eq(customersTable.id, matched.id))
+        .returning();
+      res.json({ customer: serializeCustomer(updated), isNew: false });
+      return;
+    }
+
+    // 3. Create new customer with phone from Telegram
+    const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Telegram foydalanuvchi";
+    const [created] = await db.insert(customersTable).values({
+      phone: normalizedPhone,
+      name: fullName,
+      telegramId: tid,
+    }).returning();
+    res.json({ customer: serializeCustomer(created), isNew: true });
+    return;
+  }
+
+  // No phone provided and not linked yet
+  res.status(400).json({ error: "phone required for new registration" });
+});
+
+// Check if telegramId is linked (for polling after bot contact flow)
+router.get("/telegram/check-link", async (req, res): Promise<void> => {
+  const telegramId = req.query.telegramId as string;
+  if (!telegramId) {
+    res.status(400).json({ error: "telegramId required" });
+    return;
+  }
+  const [customer] = await db.select().from(customersTable)
+    .where(eq(customersTable.telegramId, telegramId)).limit(1);
+  if (customer) {
+    res.json({ linked: true, customer: serializeCustomer(customer) });
+  } else {
+    res.json({ linked: false });
+  }
+});
+
 export default router;

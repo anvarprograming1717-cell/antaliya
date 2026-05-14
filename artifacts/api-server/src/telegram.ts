@@ -252,7 +252,88 @@ export async function handleTelegramWebhook(update: any): Promise<void> {
     return;
   }
 
-  // Phone number registration
+  // Handle web_app_data from Mini App (sendData flow)
+  if (message.web_app_data?.data === "request_phone") {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: "📱 Telefon raqamingizni ulash uchun quyidagi tugmani bosing:",
+        reply_markup: {
+          keyboard: [[{ text: "📱 Telefon raqamni ulashish", request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }),
+    });
+    return;
+  }
+
+  // Handle contact shared by user (bot keyboard request_contact flow)
+  if (message.contact) {
+    const contact = message.contact;
+    const rawPhone: string = contact.phone_number ?? "";
+    const contactFirstName: string = contact.first_name ?? firstName;
+    const contactLastName: string = contact.last_name ?? "";
+
+    // Normalize phone
+    const digits = rawPhone.replace(/[^\d]/g, "");
+    let normalizedPhone = rawPhone.startsWith("+") ? rawPhone : "+" + digits;
+    if (digits.startsWith("998") && digits.length === 12) normalizedPhone = "+" + digits;
+    else if (digits.length === 9) normalizedPhone = "+998" + digits;
+
+    const suffix = digits.slice(-9);
+
+    // Find existing customer by phone
+    const allCustomers = await db.select().from(customersTable);
+    const matched = allCustomers.find(c => {
+      if (!c.phone) return false;
+      const cd = c.phone.replace(/[^\d]/g, "");
+      return cd === digits || cd.endsWith(suffix);
+    });
+
+    let customer;
+    if (matched) {
+      // Link telegramId to existing customer
+      const [updated] = await db.update(customersTable)
+        .set({ telegramId: chatId, name: matched.name || contactFirstName })
+        .where(eq(customersTable.id, matched.id))
+        .returning();
+      customer = updated;
+    } else {
+      // Create new customer from Telegram contact
+      const fullName = [contactFirstName, contactLastName].filter(Boolean).join(" ") || "Telegram foydalanuvchi";
+      const [created] = await db.insert(customersTable).values({
+        phone: normalizedPhone,
+        name: fullName,
+        telegramId: chatId,
+      }).returning();
+      customer = created;
+    }
+
+    const successText = matched
+      ? `✅ Telefon raqamingiz muvaffaqiyatli ulandi!\n\nEndi buyurtmalar va xabarnomalar Telegramda keladi.`
+      : `✅ Ro'yxatdan o'tish muvaffaqiyatli!\n\nXush kelibsiz, <b>${customer.name}</b>!\nEndi buyurtma berishingiz mumkin.`;
+
+    const inlineMarkup = siteUrl
+      ? { inline_keyboard: [[{ text: "🛍 Do'konni ochish", web_app: { url: siteUrl } }]] }
+      : undefined;
+
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: successText,
+        parse_mode: "HTML",
+        reply_markup: inlineMarkup ?? MAIN_KEYBOARD,
+      }),
+    });
+    return;
+  }
+
+  // Phone number registration (text message flow)
   const phone = text.replace(/[^\d+]/g, "");
   if (phone.length >= 7) {
     const digits = phone.replace(/^\+/, "");
