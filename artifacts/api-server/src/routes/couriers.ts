@@ -93,11 +93,23 @@ router.patch("/courier/location", async (req, res): Promise<void> => {
     res.status(400).json({ error: "lat and lng required" });
     return;
   }
-  await db.update(couriersTable).set({
+  const [courier] = await db.update(couriersTable).set({
     lat: String(lat),
     lng: String(lng),
     locationUpdatedAt: new Date(),
-  }).where(eq(couriersTable.id, courierId));
+  }).where(eq(couriersTable.id, courierId)).returning();
+
+  // Broadcast location update via Socket.io
+  try {
+    const { getIo, activeCouriers } = await import("../socket.js");
+    const io = getIo();
+    if (io && courier) {
+      const entry = { id: String(courierId), lat, lng, name: courier.name, updatedAt: Date.now() };
+      activeCouriers.set(String(courierId), entry);
+      io.emit("courier:moved", entry);
+    }
+  } catch (_) {}
+
   res.json({ success: true });
 });
 

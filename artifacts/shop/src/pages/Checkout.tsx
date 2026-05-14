@@ -27,6 +27,7 @@ export default function Checkout() {
   const queryClient = useQueryClient();
   const session = getCustomerSession();
 
+  const [coinError, setCoinError] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("delivery");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "online">("cash");
   const [address, setAddress] = useState("");
@@ -88,6 +89,13 @@ export default function Checkout() {
     }
   }, [addressLat, addressLng, zone, deliveryMethod]);
 
+  const hasCoinProducts = !!(cartItems?.some(item => (item.product as any).coinProduct));
+  const totalCoinCost = cartItems?.reduce((sum, item) => {
+    if (!(item.product as any).coinProduct) return sum;
+    return sum + ((item.product as any).coinThreshold ?? 0) * item.quantity;
+  }, 0) || 0;
+  const myCoins = (me as any)?.coins ?? 0;
+  const hasEnoughCoins = !hasCoinProducts || myCoins >= totalCoinCost;
   const hasOnlyBonusProducts = !!(cartItems?.length && cartItems.every(item => (item.product as any).coinProduct));
   const subtotal = cartItems?.reduce((sum, item) => {
     if ((item.product as any).coinProduct) return sum;
@@ -170,6 +178,7 @@ export default function Checkout() {
 
   const handleOrder = () => {
     if (!canOrder) return;
+    setCoinError("");
     createOrder.mutate(
       {
         data: {
@@ -188,6 +197,12 @@ export default function Checkout() {
             localStorage.setItem(`savedAddress_${session.id}`, address);
           }
           setLocation("/orders");
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.error || err?.message || "";
+          if (msg.includes("Coinlar yetarli emas") || err?.response?.data?.code === "INSUFFICIENT_COINS") {
+            setCoinError(msg);
+          }
         },
       }
     );
@@ -471,9 +486,29 @@ export default function Checkout() {
             </div>
           )}
 
+          {hasCoinProducts && !isShopClosed && (
+            <div className={`flex items-center gap-2 rounded-2xl px-4 py-3 border ${hasEnoughCoins ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"}`}>
+              <span className="text-lg shrink-0">🪙</span>
+              <div>
+                <p className={`text-sm font-medium ${hasEnoughCoins ? "text-amber-700 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
+                  {hasEnoughCoins
+                    ? `Coin mahsulotlar: ${totalCoinCost} coin kerak, sizda ${myCoins} coin bor`
+                    : `Coinlar yetarli emas! Kerak: ${totalCoinCost}, mavjud: ${myCoins}`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {coinError && (
+            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+              <p className="text-sm text-red-600 dark:text-red-400 font-medium">{coinError}</p>
+            </div>
+          )}
+
           <Button
             onClick={handleOrder}
-            disabled={createOrder.isPending || !canOrder}
+            disabled={createOrder.isPending || !canOrder || (hasCoinProducts && !hasEnoughCoins)}
             className={`w-full h-14 rounded-2xl text-base font-semibold ${isShopClosed || hasOnlyBonusProducts ? "opacity-60" : ""}`}
             data-testid="button-place-order"
           >

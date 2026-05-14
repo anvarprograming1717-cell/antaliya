@@ -135,6 +135,27 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const totalPrice = Math.max(0, subtotal + deliveryFee - discountAmount);
 
+  // Pre-validate coin balance for coin products
+  const coinProductItems = cartItems.filter(item => item.product.coinProduct);
+  if (coinProductItems.length > 0) {
+    const totalCoinCost = coinProductItems.reduce((sum, item) => {
+      return sum + ((item.product.coinThreshold ?? 0) * item.quantity);
+    }, 0);
+    if (totalCoinCost > 0) {
+      const [currentCustomer] = await db.select({ coins: customersTable.coins }).from(customersTable).where(eq(customersTable.id, customerId)).limit(1);
+      const currentCoins = currentCustomer?.coins ?? 0;
+      if (currentCoins < totalCoinCost) {
+        res.status(400).json({
+          error: `Coinlar yetarli emas. Kerakli: ${totalCoinCost} coin, mavjud: ${currentCoins} coin`,
+          code: "INSUFFICIENT_COINS",
+          required: totalCoinCost,
+          current: currentCoins,
+        });
+        return;
+      }
+    }
+  }
+
   const [order] = await db.insert(ordersTable).values({
     customerId,
     status: "new",
@@ -172,9 +193,9 @@ router.post("/orders", async (req, res): Promise<void> => {
   await db.delete(cartTable).where(eq(cartTable.customerId, customerId));
 
   // Deduct coins for coin products in the order
-  const coinProductItems = cartItems.filter(item => item.product.coinProduct);
-  if (coinProductItems.length > 0) {
-    const totalCoinCost = coinProductItems.reduce((sum, item) => {
+  const deductCoinItems = cartItems.filter(item => item.product.coinProduct);
+  if (deductCoinItems.length > 0) {
+    const totalCoinCost = deductCoinItems.reduce((sum, item) => {
       return sum + ((item.product.coinThreshold ?? 0) * item.quantity);
     }, 0);
     if (totalCoinCost > 0) {
